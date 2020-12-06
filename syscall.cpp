@@ -71,13 +71,19 @@ struct select_0 : public no_arg {
 };
 
 struct fork_wait : public no_arg {
-    void run(void *arg) {
-        pid_t c = fork();
-        if (c == 0) {
-            exit(0);
+    void run(void *arg) __attribute__((noinline)) {
+        pid_t c;
+
+        if ((c=fork()) < 0) {
+            perror("fork");
+            exit(1);
         }
+        if (c == 0) {
+            _exit(1);
+        }
+
         int st;
-        wait(&st);
+        waitpid(c, &st, 0);
     }
 };
 
@@ -180,10 +186,10 @@ template <typename F> double run_test(F *f) {
     F(open_close)                                                              \
     F(pipe_close)                                                       \
     F(select_0)                                                         \
-    F(fork_wait)                                                        \
-    F(mmap_unmap)                                                             \
+    F(fork_wait)                                                    \
+    F(mmap_unmap)                                                       \
     F(write_devnull_1byte)                                              \
-    F(pthread_create_join)                                                        \
+    F(pthread_create_join)                                              \
     F(gettimeofday1)                                                     \
     F(clock_gettime1)                                                    \
 
