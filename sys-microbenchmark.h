@@ -7,6 +7,8 @@
 
 namespace smbm {
 
+constexpr int PRINT_DOUBLE_PRECISION=5;
+
 struct BenchResult {
     virtual void dump_csv(std::ostream &) = 0;
     virtual void dump_human_readable(std::ostream &) = 0;
@@ -19,7 +21,8 @@ struct BenchDesc {
 };
 
 #define FOR_EACH_BENCHMARK_LIST(F)\
-    F(idiv)
+    F(idiv)\
+    F(syscall)\
 
 std::vector<BenchDesc> get_benchmark_list();
 

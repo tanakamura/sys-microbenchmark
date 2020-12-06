@@ -1,4 +1,5 @@
 #include "sys-microbenchmark.h"
+#include <iomanip>
 #include <stdio.h>
 #include <string.h>
 
@@ -6,9 +7,13 @@ int main(int argc, char **argv) {
     using namespace smbm;
     auto bench_list = get_benchmark_list();
 
+    std::cout << std::fixed << std::setprecision(PRINT_DOUBLE_PRECISION);
+
     if (argc == 1) {
         for (auto &&b : bench_list) {
+            std::cout << "==== " << b.name << " ====\n";
             b.run(std::cout);
+            std::cout << "\n\n";
         }
 
     } else {
@@ -20,9 +25,12 @@ int main(int argc, char **argv) {
             }
         } else {
             for (int ai = 1; ai < argc; ai++) {
-                int i = ai - 1;
-                if (bench_list[i].name == argv[ai]) {
-                    bench_list[i].run(std::cout);
+                for (auto &&b : bench_list) {
+                    if (b.name == argv[ai]) {
+                        std::cout << "==== " << b.name << " ====\n";
+                        b.run(std::cout);
+                        std::cout << "\n\n";
+                    }
                 }
             }
         }
