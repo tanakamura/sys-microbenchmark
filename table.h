@@ -14,6 +14,21 @@ void dump2d(std::ostream &out, Table2D<T, LT> *t, bool uniform_width);
 template <typename T, typename LT>
 void dump1d(std::ostream &out, Table1D<T, LT> *t);
 
+namespace detail {
+inline picojson::value to_jv(int x) { return picojson::value((double)x); }
+inline picojson::value to_jv(unsigned int x) { return picojson::value((double)x); }
+
+inline picojson::value to_jv(double x) { return picojson::value((double)x); }
+inline picojson::value to_jv(std::string const &x) { return picojson::value(x); }
+
+template <typename T>
+picojson::value to_jv(std::vector<T> const &v) {
+    std::vector<picojson::value> ret;
+    std::transform(v.begin(), v.end(), std::back_inserter(ret), [](auto x) { return to_jv(x); });
+    return picojson::value(ret);
+}
+}
+
 template <typename T, typename LT> struct Table2D : BenchResult {
     std::string label[2];
     std::vector<T> v;
@@ -37,7 +52,39 @@ template <typename T, typename LT> struct Table2D : BenchResult {
     }
 
     picojson::value dump_json() override {
-        return picojson::value();
+        typedef picojson::value v_t;
+        using namespace detail;
+
+        std::map<std::string, v_t> ret;
+
+        {
+            std::vector<v_t> labels = {v_t(label[0]), v_t(label[1])};
+            ret["label"] = v_t(labels);
+        }
+
+        ret["column_label"] = to_jv(column_label);
+        ret["row_label"] = to_jv(row_label);
+        ret["values"] = to_jv(v);
+        ret["d0"] = to_jv(d0);
+        ret["d1"] = to_jv(d1);
+
+        return picojson::value(ret);
+    }
+
+    static Table2D<T,LT> *parse_json_result(picojson::value const &value) {
+        typedef Table2D<T,LT> ret_t;
+        typedef picojson::value v_t;
+
+        v_t const &l = value.get("label");
+        std::string label0 = l.get(0).to_str();
+        std::string label1 = l.get(1).to_str();
+
+        int d0 = (int)value.get("d0").get<double>();
+        int d1 = (int)value.get("d1").get<double>();
+
+        ret_t *r = new Table2D(label1, label0, d1, d0);
+
+        return r;
     }
 
 };
@@ -58,7 +105,16 @@ template <typename T, typename LT> struct Table1D : BenchResult {
     const T &operator[](int idx) const { return v[idx]; }
 
     picojson::value dump_json() override {
-        return picojson::value();
+        typedef picojson::value v_t;
+        using namespace detail;
+
+        std::map<std::string, v_t> ret;
+
+        ret["label"] = v_t(label);
+        ret["row_label"] = to_jv(row_label);
+        ret["values"] = to_jv(v);
+
+        return picojson::value(ret);
     }
     void dump_human_readable(std::ostream &os) override {
         dump1d(os, this);

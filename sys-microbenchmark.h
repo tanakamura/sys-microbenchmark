@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 #include <memory>
+
 #include "picojson.h"
 
 namespace smbm {
@@ -27,7 +28,8 @@ struct BenchDesc {
 };
 
 #define FOR_EACH_BENCHMARK_LIST(F)\
-    F(idiv)\
+    F(idiv32)\
+    F(idiv64)\
     F(syscall)\
 
 std::vector< std::unique_ptr<BenchDesc> > get_benchmark_list();

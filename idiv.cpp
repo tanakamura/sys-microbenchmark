@@ -4,26 +4,24 @@
 
 namespace smbm {
 
-static std::unique_ptr<BenchResult> run() {
-    bool bit64 = false;
-
+static std::unique_ptr<BenchResult> run(bool is_32) {
     int n_divider_bit = 63;
     int n_divisor_bit = 63;
 
-    if (!bit64) {
+    if (is_32) {
         n_divider_bit = 32;
         n_divisor_bit = 33;
     }
 
     typedef Table2D<uint32_t,uint32_t> result_t;
-    result_t*result_table(new result_t("divisor_bit", "divider_bit", n_divisor_bit, n_divider_bit));
+    result_t*result_table(new result_t("divisor_bit", "divider_bit", n_divisor_bit+1, n_divider_bit));
 
     uint32_t max = 0;
 
     for (int divisor_bit = 0; divisor_bit <= n_divisor_bit; divisor_bit++) {
         result_table->row_label[divisor_bit] = divisor_bit;
     }
-    for (int divider_bit = 0; divider_bit <= n_divider_bit; divider_bit++) {
+    for (int divider_bit = 1; divider_bit <= n_divider_bit; divider_bit++) {
         result_table->column_label[divider_bit-1] = divider_bit;
     }
 
@@ -36,7 +34,7 @@ static std::unique_ptr<BenchResult> run() {
 
             uint64_t t0 = pc.cpu_cycles();
 
-            if (bit64) {
+            if (!is_32) {
                 uint64_t dx = 0;
                 uint64_t ax = divisor;
 
@@ -97,13 +95,15 @@ static std::unique_ptr<BenchResult> run() {
 struct IDIV
     :public BenchDesc
 {
-    IDIV()
-        :BenchDesc("idiv")
+    bool is_32;
+    IDIV(bool is_32)
+        :BenchDesc(is_32?"idiv32":"idiv64"),
+         is_32(is_32)
     {
     }
 
     result_t run() override {
-        return smbm::run();
+        return smbm::run(is_32);
     }
 
     result_t parse_json_result(picojson::value const &v) override {
@@ -111,8 +111,11 @@ struct IDIV
     }
 };
 
-std::unique_ptr<BenchDesc> get_idiv_desc() {
-    return std::unique_ptr<BenchDesc> (new IDIV());
+std::unique_ptr<BenchDesc> get_idiv32_desc() {
+    return std::unique_ptr<BenchDesc> (new IDIV(true));
+}
+std::unique_ptr<BenchDesc> get_idiv64_desc() {
+    return std::unique_ptr<BenchDesc> (new IDIV(false));
 }
 
 } // namespace smbm
