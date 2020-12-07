@@ -3,10 +3,10 @@
 #include "table.h"
 #include <fcntl.h>
 #include <pthread.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <sys/mman.h>
 
 namespace smbm {
 
@@ -21,7 +21,7 @@ struct no_arg {
     void free_arg(void *p) {}
 };
 
-//struct nop : public no_arg {
+// struct nop : public no_arg {
 //    void run(void *arg) {  }
 //};
 
@@ -51,7 +51,7 @@ struct pipe_close : public no_arg {
 
 struct select_0 : public no_arg {
     void run(void *arg) {
-        fd_set rd,wr,except;
+        fd_set rd, wr, except;
         FD_ZERO(&rd);
         FD_ZERO(&wr);
         FD_ZERO(&except);
@@ -74,7 +74,7 @@ struct fork_wait : public no_arg {
     void run(void *arg) __attribute__((noinline)) {
         pid_t c;
 
-        if ((c=fork()) < 0) {
+        if ((c = fork()) < 0) {
             perror("fork");
             exit(1);
         }
@@ -89,7 +89,8 @@ struct fork_wait : public no_arg {
 
 struct mmap_unmap : public no_arg {
     void run(void *arg) {
-        void *p = mmap(0, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+        void *p = mmap(0, 4096, PROT_READ | PROT_WRITE,
+                       MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
         if (p == MAP_FAILED) {
             perror("mmap");
             exit(1);
@@ -181,51 +182,52 @@ template <typename F> double run_test(F *f) {
 }
 
 #define FOR_EACH_TEST(F)                                                       \
-    /*F(nop)*/                                                          \
-    F(close_minus1)                                                               \
+    /*F(nop)*/                                                                 \
+    F(close_minus1)                                                            \
     F(open_close)                                                              \
-    F(pipe_close)                                                       \
-    F(select_0)                                                         \
-    F(fork_wait)                                                    \
-    F(mmap_unmap)                                                       \
-    F(write_devnull_1byte)                                              \
-    F(pthread_create_join)                                              \
-    F(gettimeofday1)                                                     \
-    F(clock_gettime1)                                                    \
+    F(pipe_close)                                                              \
+    F(select_0)                                                                \
+    F(fork_wait)                                                               \
+    F(mmap_unmap)                                                              \
+    F(write_devnull_1byte)                                                     \
+    F(pthread_create_join)                                                     \
+    F(gettimeofday1)                                                           \
+    F(clock_gettime1)
 
-static std::unique_ptr<BenchResult> run(std::ostream &os) {
-    int count = 0;
+struct Syscall : public BenchDesc {
+    Syscall() : BenchDesc("syscall") {}
+
+    virtual result_t run() {
+        int count = 0;
 #define INC_COUNT(F) count++;
-    FOR_EACH_TEST(INC_COUNT);
+        FOR_EACH_TEST(INC_COUNT);
 
-    typedef Table1D<double, std::string> result_t;
-    result_t *result = new result_t("test_name", count);
+        typedef Table1D<double, std::string> result_t;
+        result_t *result = new result_t("test_name", count);
 
 #define NAME(F) #F,
 
-    result->column_label = " MCall/sec";
-    result->row_label = std::vector<std::string>{FOR_EACH_TEST(NAME)};
+        result->column_label = " MCall/sec";
+        result->row_label = std::vector<std::string>{FOR_EACH_TEST(NAME)};
 
-    count = 0;
+        count = 0;
 
 #define RUN(F)                                                                 \
     {                                                                          \
         F t;                                                                   \
         (*result)[count++] = run_test(&t);                                     \
     }
-    FOR_EACH_TEST(RUN)
+        FOR_EACH_TEST(RUN)
 
-    dump1d(os, result);
+        return std::unique_ptr<BenchResult>(result);
+    }
+    virtual result_t parse_json_result(picojson::value const &v) {
+        return nullptr;
+    }
+};
 
-    return std::unique_ptr<BenchResult>(result);
-}
-
-BenchDesc get_syscall_desc() {
-    BenchDesc ret;
-    ret.name = "syscall";
-    ret.run = run;
-
-    return ret;
+std::unique_ptr<BenchDesc> get_syscall_desc() {
+    return std::unique_ptr<BenchDesc>(new Syscall());
 }
 
 } // namespace smbm

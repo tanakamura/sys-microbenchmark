@@ -32,10 +32,14 @@ template <typename T, typename LT> struct Table2D : BenchResult {
     T *operator[](int idx) { return &v[idx * d0]; }
     const T *operator[](int idx) const { return &v[idx * d0]; }
 
-    void dump_csv(std::ostream &os) override {}
     void dump_human_readable(std::ostream &os) override {
         dump2d(os, this, false);
     }
+
+    picojson::value dump_json() override {
+        return picojson::value();
+    }
+
 };
 
 template <typename T, typename LT> struct Table1D : BenchResult {
@@ -53,7 +57,9 @@ template <typename T, typename LT> struct Table1D : BenchResult {
     T &operator[](int idx) { return v[idx]; }
     const T &operator[](int idx) const { return v[idx]; }
 
-    void dump_csv(std::ostream &os) override {}
+    picojson::value dump_json() override {
+        return picojson::value();
+    }
     void dump_human_readable(std::ostream &os) override {
         dump1d(os, this);
     }

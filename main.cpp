@@ -11,8 +11,9 @@ int main(int argc, char **argv) {
 
     if (argc == 1) {
         for (auto &&b : bench_list) {
-            std::cout << "==== " << b.name << " ====\n";
-            b.run(std::cout);
+            std::cout << "==== " << b->name << " ====\n";
+            auto result = b->run();
+            result->dump_human_readable(std::cout);
             std::cout << "\n\n";
         }
 
@@ -21,14 +22,15 @@ int main(int argc, char **argv) {
             puts("usage : sys-microbenchmark [benchmarck-list]");
             puts("  benchmarks:");
             for (auto &&b : bench_list) {
-                printf("    %s\n", b.name.c_str());
+                printf("    %s\n", b->name.c_str());
             }
         } else {
             for (int ai = 1; ai < argc; ai++) {
                 for (auto &&b : bench_list) {
-                    if (b.name == argv[ai]) {
-                        std::cout << "==== " << b.name << " ====\n";
-                        b.run(std::cout);
+                    if (b->name == argv[ai]) {
+                        std::cout << "==== " << b->name << " ====\n";
+                        auto result = b->run();
+                        result->dump_human_readable(std::cout);
                         std::cout << "\n\n";
                     }
                 }

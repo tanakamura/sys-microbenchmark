@@ -7,8 +7,8 @@
 #include <string.h>
 
 namespace smbm {
-std::vector<BenchDesc> get_benchmark_list() {
-    std::vector<BenchDesc> ret;
+std::vector< std::unique_ptr<BenchDesc> > get_benchmark_list() {
+    std::vector< std::unique_ptr<BenchDesc> > ret;
 
 #define F(B) ret.push_back(get_##B##_desc());
 

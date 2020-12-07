@@ -4,7 +4,7 @@
 
 namespace smbm {
 
-static std::unique_ptr<BenchResult> run(std::ostream &o) {
+static std::unique_ptr<BenchResult> run() {
     bool bit64 = false;
 
     int n_divider_bit = 63;
@@ -91,17 +91,28 @@ static std::unique_ptr<BenchResult> run(std::ostream &o) {
         }
     }
 
-    dump2d(o, result_table, false);
-
     return std::unique_ptr<BenchResult>(result_table);
 }
 
-BenchDesc get_idiv_desc() {
-    BenchDesc ret;
-    ret.name = "idiv";
-    ret.run = run;
+struct IDIV
+    :public BenchDesc
+{
+    IDIV()
+        :BenchDesc("idiv")
+    {
+    }
 
-    return ret;
+    result_t run() override {
+        return smbm::run();
+    }
+
+    result_t parse_json_result(picojson::value const &v) override {
+        return nullptr;
+    }
+};
+
+std::unique_ptr<BenchDesc> get_idiv_desc() {
+    return std::unique_ptr<BenchDesc> (new IDIV());
 }
 
 } // namespace smbm
