@@ -22,9 +22,10 @@ main()
     auto t1 = g.get_cputime();
 
     double dt = g.delta_cputime(&t1, &t0);
-    double dexpect = fabs(dt - 1);
-    if (dexpect > 1e-3) {
-        printf("too large error @ get_cputime delta=%f\n", dexpect);
+
+    double dexpect = fabs(dt - 1e9);
+    if (dexpect > 1e6) {
+        printf("too large error @ get_cputime delta=%f, %f-%f\n", dexpect, dt, 1e9);
         exit(1);
     }
 

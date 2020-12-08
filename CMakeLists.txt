@@ -21,7 +21,7 @@ add_executable(sys-microbenchmark
 
 target_link_libraries(libsys-microbenchmark Threads::Threads)
 
-target_compile_options(sys-microbenchmark PRIVATE -Wall)
+target_compile_options(libsys-microbenchmark PRIVATE -Wall)
 target_link_libraries(sys-microbenchmark libsys-microbenchmark)
 
 

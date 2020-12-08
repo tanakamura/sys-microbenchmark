@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#include <math.h>
 
 namespace smbm {
 std::vector<std::unique_ptr<BenchDesc>> get_benchmark_list() {
@@ -98,7 +99,7 @@ double
 GlobalState::userland_timer_delta_to_sec(uint64_t delta) {
 #ifdef HAVE_USERLAND_CPUCOUNTER
     return delta / this->userland_cpucounter_freq;
-#elif HAVE_CLOCK_GETTIME
+#elif defined HAVE_CLOCK_GETTIME
     return delta / 1e9;
 #else
 #error "xx"
@@ -112,18 +113,18 @@ GlobalState::inc_sec_userland_timer(userland_timer_value const *t0, double sec)
     userland_timer_value t1;
     t1.v64 = t0->v64 + (uint64_t)(sec * this->userland_cpucounter_freq);
     return t1;
-#elif HAVE_CLOCK_GETTIME
-    uint64_t sec = t0->tv.tv_sec + (uint64_t)floor(sec);
-    uint64_t nsec = t0->tv.tv_nsec + (uint64_t)((sec%1) * 1e9);
+#elif defined HAVE_CLOCK_GETTIME
+    uint64_t isec = t0->v.tv.tv_sec + (uint64_t)floor(sec);
+    uint64_t insec = t0->v.tv.tv_nsec + (uint64_t)((fmod(sec,1.0)) * 1e9);
 
-    if (nsec >= 1000000000) {
-        sec++;
-        nsec -= 1000000000;
+    if (insec >= 1000000000) {
+        isec++;
+        insec -= 1000000000;
     }
 
     userland_timer_value t1;
-    t1.tv.tv_sec = sec;
-    t1.tv.tv_nsec = nsec;
+    t1.v.tv.tv_sec = isec;
+    t1.v.tv.tv_nsec = insec;
     return t1;
 #else
 #error "xx"
@@ -155,7 +156,7 @@ double GlobalState::delta_cputime(cpu_dt_value const *l, cpu_dt_value const *r)
     if (this->use_cpu_cycle_counter) {
         return l->hw_cpu_cycle - r->hw_cpu_cycle;
     } else {
-        return (userland_timer_delta_to_sec(l->tv - r->tv)) * 1e9; // nsec
+        return userland_timer_delta_to_sec(l->tv - r->tv) * 1e9; // nsec
     }
 }
 

@@ -97,11 +97,11 @@ struct ostimer_value {
     struct timespec tv;
 
     bool operator>=(struct ostimer_value const &r) const {
-        if (this->tv.tv_sec < r.tv.tv_nsec) {
+        if (this->tv.tv_sec < r.tv.tv_sec) {
             return false;
         }
 
-        if (this->tv.tv_sec > r.tv.tv_nsec) {
+        if (this->tv.tv_sec > r.tv.tv_sec) {
             return true;
         }
 
@@ -117,10 +117,14 @@ struct ostimer_value {
         clock_gettime(CLOCK_MONOTONIC, &ret.tv);
         return ret;
     }
+
+    static const char *name() {
+        return "clock_gettime";
+    }
 };
 
 struct userland_timer_value {
-#if (defined X86) || (defined __aarch64__)
+#ifdef HAVE_USERLAND_CPUCOUNTER
     uint64_t v64;
     bool operator>=(struct userland_timer_value const &r) const {
         return this->v64 >= r.v64;
@@ -143,6 +147,16 @@ struct userland_timer_value {
         return ret;
     }
 
+#ifdef __aarch64__
+    static const char *name() {
+        return "cntvct";
+    }
+#else
+    static const char *name() {
+        return "rdtscp";
+    }
+#endif
+
 #else
 
     struct ostimer_value v;
@@ -159,6 +173,8 @@ struct userland_timer_value {
         ret.v = ostimer_value::get();
         return ret;
     }
+
+    static const char *name = "ostimer";
 
 #endif
 };

@@ -108,6 +108,14 @@ int main(int argc, char **argv) {
 
     std::map<std::string, picojson::value> this_obj;
 
+    this_obj["ostimer"] = picojson::value(ostimer_value::name());
+    this_obj["userland_timer"] = picojson::value(userland_timer_value::name());
+    this_obj["use_cpucycle"] = picojson::value(use_cpucycle);
+
+    std::cout << "ostimer: " << ostimer_value::name() << '\n';
+    std::cout << "userland_timer: " << userland_timer_value::name() << '\n';
+    std::cout << "use_cpucyle: " << (use_cpucycle?"yes":"no") << '\n';
+
 #ifdef X86
     x_cpuid(data+4*0, 0x80000002);
     x_cpuid(data+4*1, 0x80000003);
