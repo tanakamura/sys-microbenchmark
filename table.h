@@ -2,6 +2,7 @@
 #include "sys-microbenchmark.h"
 #include <iostream>
 #include <math.h>
+#include <iomanip>
 
 namespace smbm {
 
@@ -9,25 +10,53 @@ template <typename T, typename LT> struct Table2D;
 template <typename T, typename LT> struct Table1D;
 
 template <typename T, typename LT>
-void dump2d(std::ostream &out, Table2D<T, LT> *t, bool uniform_width);
+void dump2d(std::ostream &out, Table2D<T, LT> *t, bool uniform_width,
+            int double_precision);
 
 template <typename T, typename LT>
-void dump1d(std::ostream &out, Table1D<T, LT> *t);
+void dump1d(std::ostream &out, Table1D<T, LT> *t, int double_precision);
 
 namespace detail {
 inline picojson::value to_jv(int x) { return picojson::value((double)x); }
-inline picojson::value to_jv(unsigned int x) { return picojson::value((double)x); }
+inline picojson::value to_jv(unsigned int x) {
+    return picojson::value((double)x);
+}
 
 inline picojson::value to_jv(double x) { return picojson::value((double)x); }
-inline picojson::value to_jv(std::string const &x) { return picojson::value(x); }
+inline picojson::value to_jv(std::string const &x) {
+    return picojson::value(x);
+}
 
-template <typename T>
-picojson::value to_jv(std::vector<T> const &v) {
+template <typename T> picojson::value to_jv(std::vector<T> const &v) {
     std::vector<picojson::value> ret;
-    std::transform(v.begin(), v.end(), std::back_inserter(ret), [](auto x) { return to_jv(x); });
+    std::transform(v.begin(), v.end(), std::back_inserter(ret),
+                   [](auto x) { return to_jv(x); });
     return picojson::value(ret);
 }
+
+inline void from_jv(picojson::value const &jv, int *p) {
+    *p = (int)jv.get<double>();
 }
+inline void from_jv(picojson::value const &jv, unsigned int *p) {
+    *p = (unsigned int)jv.get<double>();
+}
+inline void from_jv(picojson::value const &jv, double *p) {
+    *p = (double)jv.get<double>();
+}
+inline void from_jv(picojson::value const &jv, std::string *p) {
+    *p = jv.to_str();
+}
+template <typename T>
+void from_jv(picojson::value const &jv, std::vector<T> *vec) {
+    auto jvec = jv.get<picojson::value::array>();
+    std::transform(jvec.begin(), jvec.end(), vec->begin(), [](auto x) {
+        T y;
+        from_jv(x, &y);
+        return y;
+    });
+}
+
+} // namespace detail
 
 template <typename T, typename LT> struct Table2D : BenchResult {
     std::string label[2];
@@ -47,8 +76,8 @@ template <typename T, typename LT> struct Table2D : BenchResult {
     T *operator[](int idx) { return &v[idx * d0]; }
     const T *operator[](int idx) const { return &v[idx * d0]; }
 
-    void dump_human_readable(std::ostream &os) override {
-        dump2d(os, this, false);
+    void dump_human_readable(std::ostream &os, int double_precision) override {
+        dump2d(os, this, false, double_precision);
     }
 
     picojson::value dump_json() override {
@@ -71,9 +100,10 @@ template <typename T, typename LT> struct Table2D : BenchResult {
         return picojson::value(ret);
     }
 
-    static Table2D<T,LT> *parse_json_result(picojson::value const &value) {
-        typedef Table2D<T,LT> ret_t;
+    static Table2D<T, LT> *parse_json_result(picojson::value const &value) {
+        typedef Table2D<T, LT> ret_t;
         typedef picojson::value v_t;
+        using namespace detail;
 
         v_t const &l = value.get("label");
         std::string label0 = l.get(0).to_str();
@@ -84,16 +114,17 @@ template <typename T, typename LT> struct Table2D : BenchResult {
 
         ret_t *r = new Table2D(label1, label0, d1, d0);
 
+        from_jv(l.get("values"), &r->v);
+
         return r;
     }
-
 };
 
 template <typename T, typename LT> struct Table1D : BenchResult {
     std::string label;
     std::vector<T> v;
     std::vector<LT> row_label;
-    LT column_label;
+    std::string column_label;
     int d0;
 
     Table1D(std::string const &d0_label, int d0) : label(d0_label), d0(d0) {
@@ -110,18 +141,42 @@ template <typename T, typename LT> struct Table1D : BenchResult {
 
         std::map<std::string, v_t> ret;
 
+        ret["column_label"] = v_t(column_label);
         ret["label"] = v_t(label);
         ret["row_label"] = to_jv(row_label);
         ret["values"] = to_jv(v);
+        ret["d0"] = to_jv(d0);
 
         return picojson::value(ret);
     }
-    void dump_human_readable(std::ostream &os) override {
-        dump1d(os, this);
+    void dump_human_readable(std::ostream &os, int double_precision) override {
+        dump1d(os, this, double_precision);
+    }
+
+    static Table1D<T, LT> *parse_json_result(picojson::value const &value) {
+        using namespace detail;
+
+        std::string label0;
+        from_jv(value.get("label"), &label0);
+
+        int d0;
+        from_jv(value.get("d0"), &d0);
+
+        auto r = new Table1D(label0, d0);
+        from_jv(value.get("values"), &r->v);
+
+        return r;
     }
 };
 
-inline unsigned int get_column_width(unsigned int x) {
+inline unsigned int get_column_width(unsigned int x, int) {
+    if (x == 0) {
+        return 1;
+    }
+
+    return (unsigned int)ceil(log10(x + 1));
+}
+inline unsigned int get_column_width(int x, int) {
     if (x == 0) {
         return 1;
     }
@@ -129,15 +184,15 @@ inline unsigned int get_column_width(unsigned int x) {
     return (unsigned int)ceil(log10(x + 1));
 }
 
-inline unsigned int get_column_width(double x) {
+inline unsigned int get_column_width(double x, int double_precision) {
     if (x < 1.0) {
-        return PRINT_DOUBLE_PRECISION + 2;
+        return double_precision + 2;
     }
 
-    return (unsigned int)(ceil(log10(x + 0.000001))+PRINT_DOUBLE_PRECISION+1);
+    return ((unsigned int)ceil(log10(floor(x)+1))) + double_precision + 1;
 }
 
-inline unsigned int get_column_width(std::string const &x) {
+inline unsigned int get_column_width(std::string const &x, int) {
     return x.length();
 }
 
@@ -148,25 +203,28 @@ inline void insert_char_n(std::ostream &out, char c, int n) {
 }
 
 template <typename T, typename LT>
-void dump2d(std::ostream &out, Table2D<T, LT> *t, bool uniform_width) {
+void dump2d(std::ostream &out, Table2D<T, LT> *t, bool uniform_width,
+            int double_precision) {
     std::vector<unsigned int> max_column(t->d0, 0);
     unsigned int row_label_max_column = 0;
+
+    std::cout << std::fixed << std::setprecision(double_precision);
 
     for (int i = 0; i < t->d1; i++) {
         for (int j = 0; j < t->d0; j++) {
             max_column[j] =
-                std::max(max_column[j], get_column_width((*t)[i][j]));
+                std::max(max_column[j], get_column_width((*t)[i][j], double_precision));
         }
     }
 
     for (int j = 0; j < t->d0; j++) {
         max_column[j] =
-            std::max(max_column[j], get_column_width(t->column_label[j]));
+            std::max(max_column[j], get_column_width(t->column_label[j],double_precision));
     }
 
     for (int i = 0; i < t->d1; i++) {
         row_label_max_column =
-            std::max(row_label_max_column, get_column_width(t->row_label[i]));
+            std::max(row_label_max_column, get_column_width(t->row_label[i], double_precision));
     }
 
     out << "-> : " << t->label[0] << '\n';
@@ -191,7 +249,7 @@ void dump2d(std::ostream &out, Table2D<T, LT> *t, bool uniform_width) {
     out << ' ';
 
     for (int j = 0; j < t->d0; j++) {
-        unsigned int nchar = get_column_width(t->column_label[j]);
+        unsigned int nchar = get_column_width(t->column_label[j], double_precision);
         out << '|';
         insert_char_n(out, ' ', max_column[j] - nchar);
         out << t->column_label[j];
@@ -206,7 +264,7 @@ void dump2d(std::ostream &out, Table2D<T, LT> *t, bool uniform_width) {
 
     for (int i = 0; i < t->d1; i++) {
         {
-            unsigned int nchar = get_column_width(t->row_label[i]);
+            unsigned int nchar = get_column_width(t->row_label[i], double_precision);
             out << '|';
             insert_char_n(out, ' ', row_label_max_column - nchar);
             out << t->row_label[i];
@@ -216,7 +274,7 @@ void dump2d(std::ostream &out, Table2D<T, LT> *t, bool uniform_width) {
 
         for (int j = 0; j < t->d0; j++) {
             T v = (*t)[i][j];
-            unsigned int nchar = get_column_width(v);
+            unsigned int nchar = get_column_width(v, double_precision);
             out << '|';
             insert_char_n(out, ' ', max_column[j] - nchar);
             out << v;
@@ -232,19 +290,19 @@ void dump2d(std::ostream &out, Table2D<T, LT> *t, bool uniform_width) {
 }
 
 template <typename T, typename LT>
-void dump1d(std::ostream &out, Table1D<T, LT> *t) {
+void dump1d(std::ostream &out, Table1D<T, LT> *t, int double_precision) {
     unsigned int max_column = 0;
     unsigned int row_label_max_column = 0;
 
     for (int i = 0; i < t->d0; i++) {
-        max_column = std::max(max_column, get_column_width((*t)[i]));
+        max_column = std::max(max_column, get_column_width((*t)[i], double_precision));
     }
 
-    max_column = std::max(max_column, get_column_width(t->column_label));
+    max_column = std::max(max_column, get_column_width(t->column_label, double_precision));
 
     for (int i = 0; i < t->d0; i++) {
         row_label_max_column =
-            std::max(row_label_max_column, get_column_width(t->row_label[i]));
+            std::max(row_label_max_column, get_column_width(t->row_label[i], double_precision));
     }
 
     int row_width = 3 + row_label_max_column + max_column;
@@ -262,7 +320,7 @@ void dump1d(std::ostream &out, Table1D<T, LT> *t) {
 
     for (int i = 0; i < t->d0; i++) {
         {
-            unsigned int nchar = get_column_width(t->row_label[i]);
+            unsigned int nchar = get_column_width(t->row_label[i], double_precision);
             out << '|';
             insert_char_n(out, ' ', row_label_max_column - nchar);
             out << t->row_label[i];
@@ -271,7 +329,7 @@ void dump1d(std::ostream &out, Table1D<T, LT> *t) {
         out << ' ';
 
         T v = (*t)[i];
-        unsigned int nchar = get_column_width(v);
+        unsigned int nchar = get_column_width(v, double_precision);
         out << '|';
         insert_char_n(out, ' ', max_column - nchar);
         out << v;

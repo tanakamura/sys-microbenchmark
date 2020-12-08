@@ -4,18 +4,18 @@
 #include <string.h>
 #include <x86intrin.h>
 #include <immintrin.h>
-#include <cpuid.h>
 #include <fstream>
 #include <getopt.h>
 #include <sys/utsname.h>
 
 static void
-run(std::map<std::string, picojson::value> *this_obj,
+run(smbm::GlobalState *g,
+    std::map<std::string, picojson::value> *this_obj,
     std::unique_ptr<smbm::BenchDesc> const &b)
 {
     std::cout << "==== " << b->name << " ====\n";
-    auto result = b->run();
-    result->dump_human_readable(std::cout);
+    auto result = b->run(g);
+    result->dump_human_readable(std::cout, b->double_precision());
     (*this_obj)[b->name] = result->dump_json();
     std::cout << "\n\n";
 }
@@ -37,12 +37,22 @@ int main(int argc, char **argv) {
     std::string json_path = "result.json";
 
     picojson::value root;
+    bool use_cpucycle = false;
 
     {
         while (1) {
+            enum {
+                OPT_USE_CPUCYCLE = 256
+            };
+
             static struct option long_options[] = {
                 {"help", no_argument, 0, 'h'},
                 {"result", required_argument, 0, 'R'},
+
+#ifdef HAVE_HW_CPUCYCLE
+                {"use-cpucycle", no_argument, 0, OPT_USE_CPUCYCLE},
+#endif
+
                 {0,0,0,0},
             };
 
@@ -66,6 +76,12 @@ int main(int argc, char **argv) {
                 }
                 exit(0);
 
+#ifdef HAVE_HW_CPUCYCLE
+            case OPT_USE_CPUCYCLE:
+                use_cpucycle = true;
+                break;
+#endif
+
             case 'R':
                 json_path = optarg;
                 break;
@@ -80,6 +96,8 @@ int main(int argc, char **argv) {
             root = picojson::value( (picojson::value::array){} );
         }
     }
+
+    GlobalState g(use_cpucycle);
 
     std::map<std::string, picojson::value> this_obj;
 
@@ -119,13 +137,13 @@ int main(int argc, char **argv) {
 
     if (optind == argc) {
         for (auto &&b : bench_list) {
-            run(&this_obj, b);
+            run(&g, &this_obj, b);
         }
     } else {
         for (int ai = 1; ai < argc; ai++) {
             for (auto &&b : bench_list) {
                 if (b->name == argv[ai]) {
-                    run(&this_obj, b);
+                    run(&g, &this_obj, b);
                 }
             }
         }

@@ -4,7 +4,7 @@
 
 namespace smbm {
 
-static std::unique_ptr<BenchResult> run(bool is_32) {
+static std::unique_ptr<BenchResult> run(GlobalState *g, bool is_32) {
     int n_divider_bit = 63;
     int n_divisor_bit = 63;
 
@@ -13,10 +13,10 @@ static std::unique_ptr<BenchResult> run(bool is_32) {
         n_divisor_bit = 33;
     }
 
-    typedef Table2D<uint32_t,uint32_t> result_t;
+    typedef Table2D<double,uint32_t> result_t;
     result_t*result_table(new result_t("divisor_bit", "divider_bit", n_divisor_bit+1, n_divider_bit));
 
-    uint32_t max = 0;
+    double max = 0;
 
     for (int divisor_bit = 0; divisor_bit <= n_divisor_bit; divisor_bit++) {
         result_table->row_label[divisor_bit] = divisor_bit;
@@ -25,14 +25,12 @@ static std::unique_ptr<BenchResult> run(bool is_32) {
         result_table->column_label[divider_bit-1] = divider_bit;
     }
 
-    perf_counter pc;
-
     for (int divisor_bit = 0; divisor_bit <= n_divisor_bit; divisor_bit++) {
         for (int divider_bit = 1; divider_bit <= n_divider_bit; divider_bit++) {
             uint64_t divisor = (uint64_t)((1ULL << divisor_bit) - 1);
             uint64_t divider = (uint64_t)((1ULL << divider_bit) - 1);
 
-            uint64_t t0 = pc.cpu_cycles();
+            auto t0 = g->get_cputime();
 
             if (!is_32) {
                 uint64_t dx = 0;
@@ -78,9 +76,9 @@ static std::unique_ptr<BenchResult> run(bool is_32) {
                 }
             }
 
-            uint64_t t1 = pc.cpu_cycles();
+            auto t1 = g->get_cputime();
 
-            uint32_t result = (t1-t0) / (1024 * 16);
+            double result = g->delta_cputime(&t1,&t0) / (1024 * 16);
             //printf("%d %d\n", (int)divisor, (int)divider);
             //uint32_t result = divisor / divider;
 
@@ -102,12 +100,16 @@ struct IDIV
     {
     }
 
-    result_t run() override {
-        return smbm::run(is_32);
+    result_t run(GlobalState *g) override {
+        return smbm::run(g, is_32);
     }
 
     result_t parse_json_result(picojson::value const &v) override {
-        return nullptr;
+        return result_t(Table2D<uint32_t,uint32_t>::parse_json_result(v));
+    }
+
+    int double_precision() override {
+        return 1;
     }
 };
 

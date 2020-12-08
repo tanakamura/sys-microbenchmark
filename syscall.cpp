@@ -10,12 +10,6 @@
 
 namespace smbm {
 
-// struct syscall_func {
-//    virtual void *alloc_arg() = 0;
-//    virtual void free_arg(void *) = 0;
-//    virtual double run1(void *arg, int msec) = 0;
-//};
-
 struct no_arg {
     void *alloc_arg() { return nullptr; };
     void free_arg(void *p) {}
@@ -159,22 +153,22 @@ struct clock_gettime1 : public no_arg {
     }
 };
 
-template <typename F> double run_test(F *f) {
+template <typename F> double run_test(GlobalState *g, F *f) {
     auto a = f->alloc_arg();
 
     f->run(a);
 
-    oneshot_timer ot(2048);
+    oneshot_timer ot(2);
     uint64_t count = 0;
-    ot.start(100);
+    ot.start(g, 0.1);
 
     while (!ot.test_end()) {
         f->run(a);
         count++;
     }
 
-    double d = ot.actual_interval();
-    double ret = count / (d * 1e6);
+    double dsec = ot.actual_interval_sec(g);
+    double ret = (dsec / count) * 1e9;
 
     f->free_arg(a);
 
@@ -197,7 +191,7 @@ template <typename F> double run_test(F *f) {
 struct Syscall : public BenchDesc {
     Syscall() : BenchDesc("syscall") {}
 
-    virtual result_t run() {
+    virtual result_t run(GlobalState *g) override {
         int count = 0;
 #define INC_COUNT(F) count++;
         FOR_EACH_TEST(INC_COUNT);
@@ -207,7 +201,7 @@ struct Syscall : public BenchDesc {
 
 #define NAME(F) #F,
 
-        result->column_label = " MCall/sec";
+        result->column_label = " nsec/call";
         result->row_label = std::vector<std::string>{FOR_EACH_TEST(NAME)};
 
         count = 0;
@@ -215,14 +209,14 @@ struct Syscall : public BenchDesc {
 #define RUN(F)                                                                 \
     {                                                                          \
         F t;                                                                   \
-        (*result)[count++] = run_test(&t);                                     \
+        (*result)[count++] = run_test(g, &t);                                  \
     }
         FOR_EACH_TEST(RUN)
 
         return std::unique_ptr<BenchResult>(result);
     }
     virtual result_t parse_json_result(picojson::value const &v) {
-        return nullptr;
+        return result_t(Table1D<double, std::string>::parse_json_result(v));
     }
 };
 
