@@ -2,8 +2,12 @@
 #include <iomanip>
 #include <stdio.h>
 #include <string.h>
+
+#ifdef X86
 #include <x86intrin.h>
 #include <immintrin.h>
+#endif
+
 #include <fstream>
 #include <getopt.h>
 #include <sys/utsname.h>
@@ -24,6 +28,7 @@ int main(int argc, char **argv) {
     using namespace smbm;
     auto bench_list = get_benchmark_list();
 
+#ifdef X86
 #ifdef _WIN32
 #define x_cpuid(p,eax) __cpuid(p, eax)
     typedef int cpuid_t;
@@ -33,6 +38,8 @@ int main(int argc, char **argv) {
 #endif
 
     cpuid_t data[4*3+1];
+#endif
+
 
     std::string json_path = "result.json";
 
@@ -101,12 +108,16 @@ int main(int argc, char **argv) {
 
     std::map<std::string, picojson::value> this_obj;
 
+#ifdef X86
     x_cpuid(data+4*0, 0x80000002);
     x_cpuid(data+4*1, 0x80000003);
     x_cpuid(data+4*2, 0x80000004);
     data[12] = 0;
 
     this_obj["cpuid"] = picojson::value((char*)data);
+#else
+    this_obj["cpuid"] = picojson::value("unknown");
+#endif
 
     {
         char buffer[256];

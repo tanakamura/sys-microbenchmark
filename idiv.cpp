@@ -48,9 +48,7 @@ std::unique_ptr<BenchResult> run(GlobalState *g) {
             asm volatile (" " : : "r"(divisor));
             auto t1 = g->get_cputime();
 
-            double result = g->delta_cputime(&t1,&t0) / (nloop * 16);
-            //printf("%d %d\n", (int)divisor, (int)divider);
-            //uint32_t result = divisor / divider;
+            double result = g->delta_cputime(&t1,&t0) / (nloop * 16.0);
 
             (*result_table)[divisor_bit][divider_bit - 1] = result;
             max = std::max(max, result);

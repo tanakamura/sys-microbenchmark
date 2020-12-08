@@ -155,7 +155,7 @@ double GlobalState::delta_cputime(cpu_dt_value const *l, cpu_dt_value const *r)
     if (this->use_cpu_cycle_counter) {
         return l->hw_cpu_cycle - r->hw_cpu_cycle;
     } else {
-        return userland_timer_delta_to_sec(l->tv - r->tv);
+        return (userland_timer_delta_to_sec(l->tv - r->tv)) * 1e9; // nsec
     }
 }
 
