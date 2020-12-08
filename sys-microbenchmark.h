@@ -30,6 +30,7 @@
 #define USE_OS_TIMECOUNTER
 #endif
 
+#include "cpuset.h"
 #include "picojson.h"
 
 namespace smbm {
@@ -168,6 +169,8 @@ union cpu_dt_value {
 };
 
 struct GlobalState {
+    CPUSet cpus;
+
 #ifdef HAVE_USERLAND_CPUCOUNTER
     double userland_cpucounter_freq;
 #endif

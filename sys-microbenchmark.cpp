@@ -45,6 +45,8 @@ ostimer_delay_loop(GlobalState *g, uint64_t msec) {
 
 
 GlobalState::GlobalState(bool use_cpu_cycle_counter) {
+    int cpu = cpus.first_cpu_pos();
+    cpus.set_affinity_self(cpu);
 
 #ifdef HAVE_USERLAND_CPUCOUNTER
     {
@@ -153,7 +155,7 @@ double GlobalState::delta_cputime(cpu_dt_value const *l, cpu_dt_value const *r)
     if (this->use_cpu_cycle_counter) {
         return l->hw_cpu_cycle - r->hw_cpu_cycle;
     } else {
-        return l->tv - r->tv;
+        return userland_timer_delta_to_sec(l->tv - r->tv);
     }
 }
 
