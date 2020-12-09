@@ -38,9 +38,12 @@ void x86_rep_movs4(void *dst, void const *src, size_t sz) {
 uint64_t x86_rep_scas1(void const *src, size_t sz) {
     uint32_t ecx = sz;
 
+    /* assumes : src is cleared to zero */
+
     __asm__ __volatile__("rep scasb"
                          :"+c"(ecx)
-                         :"D"(src)
+                         :"D"(src),
+                          "a"('Z')
                          :"memory"
         );
 
@@ -51,7 +54,8 @@ uint64_t x86_rep_scas2(void const *src, size_t sz) {
 
     __asm__ __volatile__("rep scasw"
                          :"+c"(ecx)
-                         :"D"(src)
+                         :"D"(src),
+                          "a"('Z')
                          :"memory"
         );
 
@@ -62,7 +66,8 @@ uint64_t x86_rep_scas4(void const *src, size_t sz) {
 
     __asm__ __volatile__("rep scasl"
                          :"+c"(ecx)
-                         :"D"(src)
+                         :"D"(src),
+                          "a"('Z')
                          :"memory"
         );
 
