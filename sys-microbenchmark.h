@@ -240,4 +240,6 @@ struct GlobalState {
     uint64_t ostimer_delta_to_nsec_scale() { return 1; }
 };
 
+void warmup_thread(GlobalState *g);
+
 } // namespace smbm

@@ -128,6 +128,8 @@ int main(int argc, char **argv) {
 
     ScopedSetAffinity sa(ScopedSetAffinity::bind_self_to_1proc(&g.cpus));
 
+    warmup_thread(&g);
+
     {
         char buffer[256];
         time_t now = time(NULL);

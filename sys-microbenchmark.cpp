@@ -6,6 +6,7 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <math.h>
+#include "oneshot_timer.h"
 
 namespace smbm {
 std::vector<std::unique_ptr<BenchDesc>> get_benchmark_list() {
@@ -173,5 +174,16 @@ double GlobalState::delta_cputime(cpu_dt_value const *l, cpu_dt_value const *r)
     }
 }
 
+void warmup_thread(GlobalState *g)
+{
+    oneshot_timer ot(1024);
+
+    ot.start(g, 1.0);
+
+    volatile int counter = 0;
+    while (!ot.test_end()) {
+        counter++;
+    }
+}
 
 } // namespace smbm
