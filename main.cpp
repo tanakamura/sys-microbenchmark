@@ -4,8 +4,7 @@
 #include <string.h>
 
 #ifdef X86
-#include <x86intrin.h>
-#include <immintrin.h>
+#include <cpuid.h>
 #endif
 
 #include <fstream>
@@ -126,6 +125,8 @@ int main(int argc, char **argv) {
 #else
     this_obj["cpuid"] = picojson::value("unknown");
 #endif
+
+    ScopedSetAffinity sa(ScopedSetAffinity::bind_self_to_1proc(&g.cpus));
 
     {
         char buffer[256];

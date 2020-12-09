@@ -1,24 +1,27 @@
 #include "cpuset.h"
 #include <sched.h>
-#include <unistd.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 namespace smbm {
 
-CPUSet::CPUSet() {
-    this->ncpu_all = sysconf(_SC_NPROCESSORS_CONF);
-    this->online_set = CPU_ALLOC(this->ncpu_all);
+CPUSet::CPUSet() {}
 
-    sched_getaffinity(0, CPU_ALLOC_SIZE(this->ncpu_all), this->online_set);
+CPUSet::~CPUSet() { CPU_FREE(this->online_set); }
+
+CPUSet CPUSet::current_all_online() {
+    CPUSet ret;
+    ret.ncpu_all = sysconf(_SC_NPROCESSORS_CONF);
+    ret.online_set = CPU_ALLOC(ret.ncpu_all);
+
+    sched_getaffinity(0, ret.ss(), ret.online_set);
+
+    return ret;
 }
 
-CPUSet::~CPUSet() {
-    CPU_FREE(this->online_set);
-}
-
-int CPUSet::first_cpu_pos() {
-    for (int i=0; i<this->ncpu_all; i++) {
-        if (CPU_ISSET_S(i, CPU_ALLOC_SIZE(this->ncpu_all), this->online_set)) {
+int CPUSet::first_cpu_pos() const {
+    for (int i = 0; i < this->ncpu_all; i++) {
+        if (CPU_ISSET_S(i, this->ss(), this->online_set)) {
             return i;
         }
     }
@@ -26,12 +29,11 @@ int CPUSet::first_cpu_pos() {
     abort();
 }
 
-int CPUSet::next_cpu_pos(int cur0)
-{
+int CPUSet::next_cpu_pos(int cur0) const {
     int cur = cur0;
     while (1) {
         int next = (cur + 1) % this->ncpu_all;
-        if (CPU_ISSET_S(next, CPU_ALLOC_SIZE(this->ncpu_all), this->online_set)) {
+        if (CPU_ISSET_S(next, this->ss(), this->online_set)) {
             return next;
         }
 
@@ -43,17 +45,32 @@ int CPUSet::next_cpu_pos(int cur0)
     abort();
 }
 
-void
-CPUSet::set_affinity_self(int pos)
-{
-    cpu_set_t *set = CPU_ALLOC(this->ncpu_all);
+ScopedSetAffinity ScopedSetAffinity::bind_self_to_1proc(CPUSet const *all) {
+    cpu_set_t *old = CPU_ALLOC(all->ncpu_all);
+    sched_getaffinity(0, all->ss(), old);
 
-    CPU_ZERO_S(CPU_ALLOC_SIZE(this->ncpu_all), set);
-    CPU_SET_S(pos, CPU_ALLOC_SIZE(this->ncpu_all), set);
+    cpu_set_t *set = CPU_ALLOC(all->ncpu_all);
+    int pos = all->first_cpu_pos();
 
-    sched_setaffinity(0, CPU_ALLOC_SIZE(this->ncpu_all), set);
+    CPU_ZERO_S(all->ss(), set);
+    CPU_SET_S(pos, all->ss(), set);
+
+    sched_setaffinity(0, all->ss(), set);
 
     CPU_FREE(set);
+
+    return ScopedSetAffinity(old);
 }
 
+ScopedSetAffinity ScopedSetAffinity::bind_self_to_all(CPUSet const *all) {
+    cpu_set_t *old = CPU_ALLOC(all->ncpu_all);
+    sched_getaffinity(0, all->ss(), old);
+
+    sched_setaffinity(0, all->ss(), all->online_set);
+
+    return ScopedSetAffinity(old);
 }
+
+ScopedSetAffinity::~ScopedSetAffinity() { CPU_FREE(this->old); }
+
+} // namespace smbm

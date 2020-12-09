@@ -4,16 +4,24 @@ enable_testing()
 
 find_package(Threads REQUIRED)
 
-set(CMAKE_CXX_STANDARD 14)
-
 add_library(libsys-microbenchmark
 
   sys-microbenchmark.cpp
   cpuset.cpp
+  cpu-feature.cpp
 
   idiv.cpp
   syscall.cpp
-  memory.cpp)
+  memory-latency.cpp
+  memory-bandwidth.cpp
+
+  x86-avx.cpp
+  x86-avx512.cpp
+  x86.cpp
+)
+
+set_source_files_properties(x86-avx.cpp PROPERTIES COMPILE_FLAGS -mavx)
+set_source_files_properties(x86-avx512.cpp PROPERTIES COMPILE_FLAGS -mavx512f)
 
 add_executable(sys-microbenchmark
   main.cpp
@@ -21,7 +29,7 @@ add_executable(sys-microbenchmark
 
 target_link_libraries(libsys-microbenchmark Threads::Threads)
 
-target_compile_options(libsys-microbenchmark PRIVATE -Wall)
+target_compile_options(libsys-microbenchmark PUBLIC -Wall -std=gnu++17)
 target_link_libraries(sys-microbenchmark libsys-microbenchmark)
 
 

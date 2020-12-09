@@ -45,10 +45,9 @@ ostimer_delay_loop(GlobalState *g, uint64_t msec) {
 }
 
 
-GlobalState::GlobalState(bool use_cpu_cycle_counter) {
-    int cpu = cpus.first_cpu_pos();
-    cpus.set_affinity_self(cpu);
-
+GlobalState::GlobalState(bool use_cpu_cycle_counter)
+    :cpus(CPUSet::current_all_online())
+{
 #ifdef HAVE_USERLAND_CPUCOUNTER
     {
         uint64_t measure_delay = 50;

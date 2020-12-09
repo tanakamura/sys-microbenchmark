@@ -5,29 +5,10 @@
 #include <string>
 #include <vector>
 
-#if (defined __i386__) || (defined __x86_64__)
-#define X86
-#include <cpuid.h>
-#include <immintrin.h>
+#include "features.h"
+
+#ifdef X86
 #include <x86intrin.h>
-#endif
-
-#ifdef __linux__
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
-#define HAVE_HW_CPUCYCLE
-#define HAVE_CLOCK_GETTIME
-#include <time.h>
-#endif
-
-#if (defined X86) || (defined __aarch64__)
-#define HAVE_USERLAND_CPUCOUNTER
-#endif
-
-#ifndef HAVE_USERLAND_CPUCOUNTER
-#define USE_OS_TIMECOUNTER
 #endif
 
 #include "cpuset.h"
@@ -41,6 +22,7 @@ enum class ResultValueUnit {
     CPU_HW_CYCLES,
     REALTIME_NSEC,
     BYTES_PER_SEC,
+    MiBYTES_PER_SEC,
     CALL_PER_SEC
 };
 
@@ -67,8 +49,9 @@ struct BenchDesc {
     F(idiv32)                                                                  \
     F(idiv64)                                                                  \
     F(syscall)                                                                 \
-    F(memory_bandwidth)                                                        \
-    F(memory_latency)
+    F(memory_bandwidth_1thread)                                                 \
+    F(memory_bandwidth_full_thread)                                     \
+    F(memory_random_access)
 
 std::vector<std::unique_ptr<BenchDesc>> get_benchmark_list();
 

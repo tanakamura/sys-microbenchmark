@@ -3,6 +3,7 @@
 #include <iostream>
 #include <math.h>
 #include <iomanip>
+#include <sstream>
 
 namespace smbm {
 
@@ -185,11 +186,12 @@ inline unsigned int get_column_width(int x, int) {
 }
 
 inline unsigned int get_column_width(double x, int double_precision) {
-    if (x < 1.0) {
-        return double_precision + 2;
-    }
+    std::stringstream ss;
 
-    return ((unsigned int)ceil(log10(floor(x)+1))) + double_precision + 1;
+    ss << std::fixed << std::setprecision(double_precision);
+    ss << x;
+
+    return ss.str().length();
 }
 
 inline unsigned int get_column_width(std::string const &x, int) {
