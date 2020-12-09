@@ -115,8 +115,11 @@ static const StoreTest store_tests[] = {
     {"gccvec128-store", gccvec128_store_test, T},
 
 #ifdef X86
+    {"sse-stream-store", sse_stream_store, T},
     {"avx256-store", avx256_store, have_avx},
+    {"avx256-stream-store", avx256_stream_store, have_avx},
     {"avx512-store", avx512_store, have_avx512f},
+    {"avx512-stream-store", avx512_stream_store, have_avx512f},
 
     {"x86-rep-stos1", x86_rep_stos1, T},
     {"x86-rep-stos2", x86_rep_stos2, T},

@@ -1,7 +1,7 @@
 #include "x86funcs.h"
 
 #ifdef X86
-
+#include <immintrin.h>
 namespace smbm {
 
 void x86_rep_movs1(void *dst, void const *src, size_t sz) {
@@ -97,6 +97,18 @@ void x86_rep_stos4(void *dst, size_t sz) {
         );
 }
 
+void sse_stream_store(void *dst, size_t sz) {
+    size_t nloop = sz / 16;
+    __m128i *vd = (__m128i*)dst;
+    __m128i zero = _mm_setzero_si128();
+
+    for (size_t i=0; i<nloop; i+=4) {
+        _mm_stream_si128(&vd[i + 0], zero);
+        _mm_stream_si128(&vd[i + 1], zero);
+        _mm_stream_si128(&vd[i + 2], zero);
+        _mm_stream_si128(&vd[i + 3], zero);
+    }
+}
 
 }
 

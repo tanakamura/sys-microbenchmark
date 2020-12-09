@@ -7,13 +7,17 @@
 namespace smbm {
 
 #ifdef X86
+extern void sse_stream_store(void *dst, size_t sz);
+
 extern void avx256_copy(void *dst, void const *src, size_t sz);
 extern uint64_t avx256_load(void const *src, size_t sz);
 extern void avx256_store(void *dst, size_t sz);
+extern void avx256_stream_store(void *dst, size_t sz);
 
 extern void avx512_copy(void *dst, void const *src, size_t sz);
 extern uint64_t avx512_load(void const *src, size_t sz);
 extern void avx512_store(void *dst, size_t sz);
+extern void avx512_stream_store(void *dst, size_t sz);
 
 extern void x86_rep_movs1(void *dst, void const *src, size_t sz);
 extern void x86_rep_movs2(void *dst, void const *src, size_t sz);
