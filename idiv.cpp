@@ -30,8 +30,7 @@ std::unique_ptr<BenchResult> run(GlobalState *g) {
         for (int divider_bit = 1; divider_bit <= n_divider_bit; divider_bit++) {
             int_t divisor = (int_t)((1ULL << divisor_bit) - 1);
             int_t divider = (int_t)((1ULL << divider_bit) - 1);
-            int_t zero = 0;
-            asm volatile (" " : "+r"(zero));
+            int_t zero = g->getzero();
 
             auto t0 = g->get_cputime();
             int nloop = 2048;
@@ -45,9 +44,9 @@ std::unique_ptr<BenchResult> run(GlobalState *g) {
                     divisor |= x;
                     );
             }
-            asm volatile (" " : : "r"(divisor));
             auto t1 = g->get_cputime();
 
+            g->dummy_write(0, divisor);
             double result = g->delta_cputime(&t1,&t0) / (nloop * 16.0);
 
             (*result_table)[divisor_bit][divider_bit - 1] = result;

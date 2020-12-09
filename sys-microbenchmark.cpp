@@ -48,6 +48,20 @@ ostimer_delay_loop(GlobalState *g, uint64_t msec) {
 GlobalState::GlobalState(bool use_cpu_cycle_counter)
     :cpus(CPUSet::current_all_online())
 {
+    void *p = 0;
+    posix_memalign(&p, 64, 64);
+
+    this->zero_memory = (uint64_t*)p;
+    *this->zero_memory = 0;
+
+    int ncpu = cpus.ncpu_all;
+    this->dustbox = new uint64_t*[ncpu];
+
+    for (int i=0; i<ncpu; i++) {
+        posix_memalign(&p, 64, 64);
+        this->dustbox[i] = (uint64_t*)p;
+    }
+
 #ifdef HAVE_USERLAND_CPUCOUNTER
     {
         uint64_t measure_delay = 50;

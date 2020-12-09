@@ -184,6 +184,17 @@ struct GlobalState {
     ~GlobalState();
     double userland_timer_delta_to_sec(uint64_t delta);
 
+    uint64_t *zero_memory;
+    uint64_t **dustbox;
+
+    uint64_t getzero() {
+        return *zero_memory;
+    };
+
+    void dummy_write(int cpu, uint64_t val) {
+        dustbox[cpu][0] = val;
+    };
+
 #ifdef HAVE_HW_CPUCYCLE
     bool use_cpu_cycle_counter;
 
