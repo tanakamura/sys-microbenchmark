@@ -17,9 +17,11 @@ run(smbm::GlobalState *g,
     std::unique_ptr<smbm::BenchDesc> const &b)
 {
     std::cout << "==== " << b->name << " ====\n";
-    auto result = b->run(g);
-    result->dump_human_readable(std::cout, b->double_precision());
-    (*this_obj)[b->name] = result->dump_json();
+    {
+        auto result = b->run(g);
+        result->dump_human_readable(std::cout, b->double_precision());
+        (*this_obj)[b->name] = result->dump_json();
+    }
     std::cout << "\n\n";
 }
 

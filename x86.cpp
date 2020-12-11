@@ -40,7 +40,7 @@ uint64_t x86_rep_scas1(void const *src, size_t sz) {
 
     /* assumes : src is cleared to zero */
 
-    __asm__ __volatile__("rep scasb"
+    __asm__ __volatile__("repne scasb"
                          :"+c"(ecx)
                          :"D"(src),
                           "a"('Z')
@@ -52,7 +52,7 @@ uint64_t x86_rep_scas1(void const *src, size_t sz) {
 uint64_t x86_rep_scas2(void const *src, size_t sz) {
     uint32_t ecx = sz/2;
 
-    __asm__ __volatile__("rep scasw"
+    __asm__ __volatile__("repne scasw"
                          :"+c"(ecx)
                          :"D"(src),
                           "a"('Z')
@@ -64,7 +64,7 @@ uint64_t x86_rep_scas2(void const *src, size_t sz) {
 uint64_t x86_rep_scas4(void const *src, size_t sz) {
     uint32_t ecx = sz/4;
 
-    __asm__ __volatile__("rep scasl"
+    __asm__ __volatile__("repne scasl"
                          :"+c"(ecx)
                          :"D"(src),
                           "a"('Z')

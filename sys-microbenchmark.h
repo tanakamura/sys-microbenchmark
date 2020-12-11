@@ -31,6 +31,7 @@ enum class Timer { POSIX_CLOCK_GETTIME, CPU_COUNTER };
 struct GlobalState;
 
 struct BenchResult {
+    virtual ~BenchResult() {}
     virtual picojson::value dump_json() = 0;
     virtual void dump_human_readable(std::ostream &, int double_precision) = 0;
 };
@@ -179,28 +180,28 @@ struct GlobalState {
 #endif
 
     userland_timer_value
-    inc_sec_userland_timer(struct userland_timer_value const *t, double sec);
+    inc_sec_userland_timer(struct userland_timer_value const *t, double sec) const;
     GlobalState(bool use_cpu_cycle_counter);
     ~GlobalState();
-    double userland_timer_delta_to_sec(uint64_t delta);
+    double userland_timer_delta_to_sec(uint64_t delta) const;
 
     uint64_t *zero_memory;
     uint64_t **dustbox;
 
-    uint64_t getzero() {
+    uint64_t getzero() const {
         return *zero_memory;
     };
 
-    void dummy_write(int cpu, uint64_t val) {
+    void dummy_write(int cpu, uint64_t val) const {
         dustbox[cpu][0] = val;
     };
 
 #ifdef HAVE_HW_CPUCYCLE
     bool use_cpu_cycle_counter;
 
-    uint64_t get_hw_cpucycle();
+    uint64_t get_hw_cpucycle() const ;
 
-    cpu_dt_value get_cputime() {
+    cpu_dt_value get_cputime() const {
         cpu_dt_value ret;
         if (use_cpu_cycle_counter) {
             ret.hw_cpu_cycle = get_hw_cpucycle();
@@ -210,7 +211,7 @@ struct GlobalState {
         return ret;
     }
 
-    ResultValueUnit get_cputime_unit() {
+    ResultValueUnit get_cputime_unit() const {
         if (use_cpu_cycle_counter) {
             return ResultValueUnit::CPU_HW_CYCLES;
         } else {
@@ -218,20 +219,20 @@ struct GlobalState {
         }
     }
 
-    double delta_cputime(cpu_dt_value const *l, cpu_dt_value const *r);
+    double delta_cputime(cpu_dt_value const *l, cpu_dt_value const *r) const ;
 #else
 
-    cpu_timer get_cputime() {
+    cpu_timer get_cputime() const {
         cpu_timer ret;
         ret.tv = userland_timer_value::get();
         return ret;
     }
 
-    ResultValueUnit get_cputime_unit() {
+    ResultValueUnit get_cputime_unit() const {
         return ResultValueUnit::REALTIME_NSEC;
     }
 
-    double delta_cputime(cpu_dt_value const *l, cpu_dt_value const *r) {
+    double delta_cputime(cpu_dt_value const *l, cpu_dt_value const *r) const {
         return userland_timer_value_to_nsec(l->tv - r->tv);
     }
 
@@ -240,6 +241,6 @@ struct GlobalState {
     uint64_t ostimer_delta_to_nsec_scale() { return 1; }
 };
 
-void warmup_thread(GlobalState *g);
+void warmup_thread(GlobalState const *g);
 
 } // namespace smbm

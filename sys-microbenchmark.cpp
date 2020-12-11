@@ -1,12 +1,14 @@
 #include "sys-microbenchmark.h"
+#include "oneshot_timer.h"
 #include <fcntl.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
+#include <math.h>
 #include <string.h>
 #include <sys/syscall.h>
 #include <unistd.h>
-#include <math.h>
-#include "oneshot_timer.h"
+
+#include "memalloc.h"
 
 namespace smbm {
 std::vector<std::unique_ptr<BenchDesc>> get_benchmark_list() {
@@ -29,15 +31,14 @@ static int perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu,
 }
 #endif
 
-static inline void
-ostimer_delay_loop(GlobalState *g, uint64_t msec) {
-    uint64_t target_delta = (msec*1000000) * g->ostimer_delta_to_nsec_scale();
+static inline void ostimer_delay_loop(GlobalState *g, uint64_t msec) {
+    uint64_t target_delta = (msec * 1000000) * g->ostimer_delta_to_nsec_scale();
 
     auto t0 = ostimer_value::get();
     while (1) {
         auto t1 = ostimer_value::get();
 
-        uint64_t d = t1-t0;
+        uint64_t d = t1 - t0;
 
         if (d >= target_delta) {
             break;
@@ -45,22 +46,19 @@ ostimer_delay_loop(GlobalState *g, uint64_t msec) {
     }
 }
 
-
 GlobalState::GlobalState(bool use_cpu_cycle_counter)
-    :cpus(CPUSet::current_all_online())
-{
-    void *p = 0;
-    posix_memalign(&p, 64, 64);
+    : cpus(CPUSet::current_all_online()) {
+    void *p = aligned_alloc(64, 64);
 
-    this->zero_memory = (uint64_t*)p;
+    this->zero_memory = (uint64_t *)p;
     *this->zero_memory = 0;
 
     int ncpu = cpus.ncpu_all;
-    this->dustbox = new uint64_t*[ncpu];
+    this->dustbox = new uint64_t *[ncpu];
 
-    for (int i=0; i<ncpu; i++) {
-        posix_memalign(&p, 64, 64);
-        this->dustbox[i] = (uint64_t*)p;
+    for (int i = 0; i < ncpu; i++) {
+        p = aligned_alloc(64, 64);
+        this->dustbox[i] = (uint64_t *)p;
     }
 
 #ifdef HAVE_USERLAND_CPUCOUNTER
@@ -70,7 +68,7 @@ GlobalState::GlobalState(bool use_cpu_cycle_counter)
 
         uint64_t min = -(1ULL);
 
-        for (int i=0; i<5; i++) {
+        for (int i = 0; i < 5; i++) {
             auto t0 = userland_timer_value::get();
             ostimer_delay_loop(this, measure_delay);
             auto t1 = userland_timer_value::get();
@@ -84,7 +82,6 @@ GlobalState::GlobalState(bool use_cpu_cycle_counter)
         this->userland_cpucounter_freq = freq;
     }
 #endif
-
 
 #ifdef __linux__
     this->use_cpu_cycle_counter = use_cpu_cycle_counter;
@@ -109,8 +106,7 @@ GlobalState::GlobalState(bool use_cpu_cycle_counter)
 #endif
 }
 
-double
-GlobalState::userland_timer_delta_to_sec(uint64_t delta) {
+double GlobalState::userland_timer_delta_to_sec(uint64_t delta) const {
 #ifdef HAVE_USERLAND_CPUCOUNTER
     return delta / this->userland_cpucounter_freq;
 #elif defined HAVE_CLOCK_GETTIME
@@ -121,15 +117,15 @@ GlobalState::userland_timer_delta_to_sec(uint64_t delta) {
 }
 
 userland_timer_value
-GlobalState::inc_sec_userland_timer(userland_timer_value const *t0, double sec)
-{
+GlobalState::inc_sec_userland_timer(userland_timer_value const *t0,
+                                    double sec) const {
 #ifdef HAVE_USERLAND_CPUCOUNTER
     userland_timer_value t1;
     t1.v64 = t0->v64 + (uint64_t)(sec * this->userland_cpucounter_freq);
     return t1;
 #elif defined HAVE_CLOCK_GETTIME
     uint64_t isec = t0->v.tv.tv_sec + (uint64_t)floor(sec);
-    uint64_t insec = t0->v.tv.tv_nsec + (uint64_t)((fmod(sec,1.0)) * 1e9);
+    uint64_t insec = t0->v.tv.tv_nsec + (uint64_t)((fmod(sec, 1.0)) * 1e9);
 
     if (insec >= 1000000000) {
         isec++;
@@ -143,10 +139,20 @@ GlobalState::inc_sec_userland_timer(userland_timer_value const *t0, double sec)
 #else
 #error "xx"
 #endif
-    
 }
 
 GlobalState::~GlobalState() {
+    aligned_free(this->zero_memory);
+
+    int ncpu = cpus.ncpu_all;
+
+    for (int i = 0; i < ncpu; i++) {
+        aligned_free(this->dustbox[i]);
+    }
+
+    delete [] this->dustbox;
+
+
 #ifdef __linux__
     if (this->use_cpu_cycle_counter) {
         close(this->perf_fd);
@@ -154,7 +160,7 @@ GlobalState::~GlobalState() {
 #endif
 }
 
-uint64_t GlobalState::get_hw_cpucycle() {
+uint64_t GlobalState::get_hw_cpucycle() const {
     long long val;
     ssize_t sz = read(this->perf_fd, &val, sizeof(val));
     if (sz != sizeof(val)) {
@@ -165,8 +171,8 @@ uint64_t GlobalState::get_hw_cpucycle() {
     return val;
 }
 
-double GlobalState::delta_cputime(cpu_dt_value const *l, cpu_dt_value const *r)
-{
+double GlobalState::delta_cputime(cpu_dt_value const *l,
+                                  cpu_dt_value const *r) const {
     if (this->use_cpu_cycle_counter) {
         return l->hw_cpu_cycle - r->hw_cpu_cycle;
     } else {
@@ -174,8 +180,7 @@ double GlobalState::delta_cputime(cpu_dt_value const *l, cpu_dt_value const *r)
     }
 }
 
-void warmup_thread(GlobalState *g)
-{
+void warmup_thread(const GlobalState *g) {
     oneshot_timer ot(1024);
 
     ot.start(g, 1.0);

@@ -19,7 +19,7 @@ struct oneshot_timer {
         :count_max(count)
     {}
 
-    void start(GlobalState *g, double sec_delay) {
+    void start(const GlobalState *g, double sec_delay) {
         tv_start = userland_timer_value::get();
         tv_end = g->inc_sec_userland_timer(&tv_start, sec_delay);
         count = 0;
@@ -39,7 +39,7 @@ struct oneshot_timer {
         return false;
     }
 
-    double actual_interval_sec(GlobalState *g) {
+    double actual_interval_sec(const GlobalState *g) {
         return g->userland_timer_delta_to_sec(this->tv_end_actual - this->tv_start);
     };
 };

@@ -1,7 +1,12 @@
+#include "cpu-feature.h"
+#include "ipc.h"
+#include "memalloc.h"
+#include "oneshot_timer.h"
 #include "sys-microbenchmark.h"
 #include "table.h"
-#include "cpu-feature.h"
+#include "thread.h"
 #include "x86funcs.h"
+#include <atomic>
 
 namespace smbm {
 
@@ -26,74 +31,193 @@ struct LoadTest {
 static void memcpy_test(void *dst, void const *src, size_t sz) {
     memcpy(dst, src, sz);
 }
-static void memset_test(void *dst, size_t sz) {
-    memset(dst, 0, sz);
-}
+static void memset_test(void *dst, size_t sz) { memset(dst, 0, sz); }
 
-static uint64_t simple_long_sum_test(void const  *src, size_t sz) {
-    size_t nloop = sz/8;
-    const uint64_t *p = (const uint64_t*)src;
+static uint64_t simple_long_sum_test(void const *src, size_t sz) {
+    size_t nloop = sz / 8;
+    const uint64_t *p = (const uint64_t *)src;
     uint64_t sum = 0;
 
-    for (size_t i=0;i<nloop; i++) {
+    for (size_t i = 0; i < nloop; i++) {
         sum += p[i];
     }
     return sum;
 }
-static void simple_long_copy_test(void *dst, void const  *src, size_t sz) {
-    size_t nloop = sz/8;
-    const uint64_t *ps = (const uint64_t*)src;
-    uint64_t *pd = (uint64_t*)dst;
+static void simple_long_copy_test(void *dst, void const *src, size_t sz) {
+    size_t nloop = sz / 8;
+    const uint64_t *ps = (const uint64_t *)src;
+    uint64_t *pd = (uint64_t *)dst;
 
-    for (size_t i=0;i<nloop; i++) {
+    for (size_t i = 0; i < nloop; i++) {
         pd[i] = ps[i];
     }
 }
 static void simple_long_store_test(void *dst, size_t sz) {
-    size_t nloop = sz/8;
-    uint64_t *pd = (uint64_t*)dst;
+    size_t nloop = sz / 8;
+    uint64_t *pd = (uint64_t *)dst;
 
-    for (size_t i=0;i<nloop; i++) {
+    for (size_t i = 0; i < nloop; i++) {
         pd[i] = 0;
     }
 }
 
-static bool T() {
-    return true;
-}
+static bool T() { return true; }
 
 typedef uint64_t vec128i __attribute__((vector_size(16)));
 
-static uint64_t gccvec128_load_test(void const  *src, size_t sz) {
-    size_t nloop = sz/16;
-    const vec128i *p = (const vec128i*)src;
-    vec128i sum = {0,0};
+static uint64_t gccvec128_load_test(void const *src, size_t sz) {
+    size_t nloop = sz / 16;
+    const vec128i *p = (const vec128i *)src;
 
-    for (size_t i=0;i<nloop; i++) {
-        sum += p[i];
+    vec128i sum0 = {0, 0};
+    vec128i sum1 = {0, 0};
+    vec128i sum2 = {0, 0};
+    vec128i sum3 = {0, 0};
+
+    for (size_t i = 0; i < nloop; i += 4) {
+        sum0 += p[i + 0];
+        sum1 += p[i + 1];
+        sum2 += p[i + 2];
+        sum3 += p[i + 3];
     }
-    return sum[0] + sum[1];
-}
-static void gccvec128_copy_test(void *dst, void const  *src, size_t sz) {
-    size_t nloop = sz/16;
-    const vec128i *ps = (const vec128i*)src;
-    vec128i *pd = (vec128i*)dst;
 
-    for (size_t i=0;i<nloop; i++) {
-        pd[i] = ps[i];
+    sum0 = sum0 + sum1;
+    sum2 = sum2 + sum3;
+
+    sum0 = sum0 + sum2;
+
+    return sum0[0] + sum0[1];
+}
+static void gccvec128_copy_test(void *dst, void const *src, size_t sz) {
+    size_t nloop = sz / 16;
+    const vec128i *ps = (const vec128i *)src;
+    vec128i *pd = (vec128i *)dst;
+
+    for (size_t i = 0; i < nloop; i += 4) {
+        vec128i v0 = ps[i + 0];
+        vec128i v1 = ps[i + 1];
+        vec128i v2 = ps[i + 2];
+        vec128i v3 = ps[i + 3];
+
+        pd[i + 0] = v0;
+        pd[i + 1] = v1;
+        pd[i + 2] = v2;
+        pd[i + 3] = v3;
     }
 }
 static void gccvec128_store_test(void *dst, size_t sz) {
-    size_t nloop = sz/16;
-    vec128i *pd = (vec128i*)dst;
+    size_t nloop = sz / 16;
+    vec128i *pd = (vec128i *)dst;
 
-    vec128i zero = {0,0};
+    vec128i zero = {0, 0};
 
-    for (size_t i=0;i<nloop; i++) {
+    for (size_t i = 0; i < nloop; i++) {
         pd[i] = zero;
     }
 }
 
+inline void wait_barrier(std::atomic<int> *p, int wait_count) {
+    wmb();
+    (*p) += 1;
+
+    while (1) {
+        if ((*p) == wait_count) {
+            break;
+        }
+    }
+    rmb();
+}
+
+enum class memop { COPY, STORE, LOAD, QUIT };
+
+union fn_union {
+    void (*p_copy_fn)(void *dst, void const *src, size_t sz);
+    void (*p_store_fn)(void *dst, size_t sz);
+    uint64_t (*p_load_fn)(void const *src, size_t sz);
+};
+
+struct ThreadInfo {
+    thread_handle_t t;
+    int total_thread_num;
+
+    Pipe notify_to_copy_thread;
+    Pipe notify_from_copy_thread;
+
+    double duration_sec;
+    double actual_sec;
+    size_t buffer_size;
+    const GlobalState *g;
+
+    memop com;
+    fn_union fn;
+    std::atomic<int> *start_barrier;
+    std::atomic<int> *end_barrier;
+
+    size_t total_transfer;
+};
+
+static inline void invoke_memory_func(ThreadInfo *ti, void *dst, void *src) {
+    switch (ti->com) {
+    case memop::COPY:
+        ti->fn.p_copy_fn(dst, src, ti->buffer_size);
+        break;
+
+    case memop::STORE:
+        ti->fn.p_store_fn(dst, ti->buffer_size);
+        break;
+
+    case memop::LOAD:
+        ti->fn.p_load_fn(src, ti->buffer_size);
+        break;
+
+    case memop::QUIT:
+        abort();
+    }
+}
+
+static void *mem_thread(void *p) {
+    ThreadInfo *ti = (ThreadInfo *)p;
+
+    void *src = aligned_calloc(64, ti->buffer_size);
+    void *dst = aligned_calloc(64, ti->buffer_size);
+
+    warmup_thread(ti->g);
+
+    while (1) {
+        read_pipe(&ti->notify_to_copy_thread);
+
+        if (ti->com == memop::QUIT) {
+            break;
+        }
+
+        invoke_memory_func(ti, dst, src);
+
+        wait_barrier(ti->start_barrier, ti->total_thread_num);
+
+        oneshot_timer ot(16);
+        uint64_t call_count = 0;
+
+        ot.start(ti->g, ti->duration_sec);
+
+        while (!ot.test_end()) {
+            invoke_memory_func(ti, dst, src);
+
+            call_count++;
+        }
+
+        wait_barrier(ti->end_barrier, ti->total_thread_num);
+
+        ti->actual_sec = ot.actual_interval_sec(ti->g);
+        ti->total_transfer = call_count * ti->buffer_size;
+
+        write_pipe(&ti->notify_from_copy_thread, 0);
+    }
+
+    aligned_free(src);
+    aligned_free(dst);
+
+    return nullptr;
+}
 
 static const CopyTest copy_tests[] = {
     {"simple-long-copy", simple_long_copy_test, T},
@@ -142,67 +266,71 @@ static const LoadTest load_tests[] = {
 
 };
 
+static double run1(ThreadInfo *t, int num_thread, memop op, fn_union u) {
+    *(t[0].start_barrier) = 0;
+    *(t[0].end_barrier) = 0;
+
+    for (int i = 0; i < num_thread; i++) {
+        t[i].com = op;
+        t[i].fn = u;
+        write_pipe(&t[i].notify_to_copy_thread, 0);
+    }
+
+    size_t total_transfer = 0;
+    for (int i = 0; i < num_thread; i++) {
+        read_pipe(&t[i].notify_from_copy_thread);
+        total_transfer += t[i].total_transfer;
+    }
+
+    double sec = t[0].actual_sec;
+    double bytes_per_sec = total_transfer / sec;
+
+    return bytes_per_sec;
+}
+
+static ThreadInfo *init_threads(const GlobalState *g, int num_thread,
+                                double duration_sec, size_t buffer_size) {
+    ThreadInfo *t = new ThreadInfo[num_thread];
+
+    std::atomic<int> *start_barrier = new std::atomic<int>;
+    std::atomic<int> *end_barrier = new std::atomic<int>;
+
+    int cpu_on = g->cpus.first_cpu_pos();
+
+    cpu_on = g->cpus.next_cpu_pos(cpu_on); // skip control thread
+
+    for (int i = 0; i < num_thread; i++) {
+        t[i].start_barrier = start_barrier;
+        t[i].end_barrier = end_barrier;
+        t[i].total_thread_num = num_thread;
+        t[i].duration_sec = duration_sec;
+        t[i].buffer_size = buffer_size;
+        t[i].g = g;
+
+        t[i].t = spawn_thread_on_proc(mem_thread, &t[i], cpu_on, &g->cpus);
+
+        cpu_on = g->cpus.next_cpu_pos(cpu_on);
+    }
+
+    return t;
+}
+
+static void finish_threads(ThreadInfo *t, int num_thread) {
+    delete t[0].start_barrier;
+    delete t[0].end_barrier;
+
+    for (int i = 0; i < num_thread; i++) {
+        t[i].com = memop::QUIT;
+        write_pipe(&t[i].notify_to_copy_thread, 0);
+        wait_thread(t[i].t);
+    }
+
+    delete [] t;
+}
+
 } // namespace
 
 #if 0
-
-#define compiler_mb() __asm__ __volatile__("" ::: "memory");
-#define cpu_rmb() _mm_lfence()
-#define cpu_wmb() _mm_sfence()
-
-struct __attribute__((aligned(64))) thread_shared {
-    pthread_t t;
-
-    int ti;
-    char *src;
-    char *dst;
-    size_t max_size;
-
-    int start;
-    int end;
-
-    opfn_t op_fn;
-    int num_iter;
-    size_t copy_size;
-};
-
-static void run_test1(char *dstp, char *srcp, opfn_t opfn, int num_iter,
-                      size_t copy_size) {
-    for (int ii = 0; ii < num_iter; ii++) {
-        opfn(dstp, srcp, copy_size);
-    }
-}
-
-void *thread_fn(void *p) {
-    struct thread_shared *ts = (struct thread_shared *)p;
-
-    char *srcp = ts->src + ts->ti * ts->max_size;
-    char *dstp = ts->dst + ts->ti * ts->max_size;
-
-    while (1) {
-        if (ts->start == 2) {
-            break;
-        }
-
-        if (ts->start != 1) {
-            compiler_mb();
-            continue;
-        }
-
-        ts->start = 0;
-
-        cpu_rmb();
-
-        run_test1(dstp, srcp, ts->op_fn, ts->num_iter, ts->copy_size);
-
-        cpu_wmb();
-
-        ts->end = 1;
-    }
-
-    return NULL;
-}
-
 static void do_test(struct thread_shared *clients, char *dst, char *src,
                     size_t max_size, int nproc, opfn_t opfn,
                     const char *test_name, int mul) {
@@ -272,226 +400,91 @@ static void do_test(struct thread_shared *clients, char *dst, char *src,
         ni *= 2;
     }
 }
-
-void *libc_memset(void *dst, const void *src, size_t sz) {
-    memset(dst, 0, sz);
-    return NULL;
-}
-
-void *amd_clzero(void *dst, const void *src, size_t sz) {
-    size_t line_size = 64;
-    size_t num_line = sz / line_size;
-
-    unsigned char *d = (unsigned char *)dst;
-    unsigned char *s = (unsigned char *)src;
-
-    for (int i = 0; i < num_line; i++) {
-        _mm_clzero(d);
-
-        d += line_size;
-    }
-
-    return NULL;
-}
-
-void *sse_load(void *dst, const void *src, size_t sz) {
-    size_t sz_sse = sz / 16;
-    //__m128 *vdst = dst;
-    const volatile __m128 *vsrc = src;
-
-    for (size_t i = 0; i < sz_sse; i += 8) {
-        vsrc[i + 0];
-        vsrc[i + 1];
-        vsrc[i + 2];
-        vsrc[i + 3];
-
-        vsrc[i + 4];
-        vsrc[i + 5];
-        vsrc[i + 6];
-        vsrc[i + 7];
-    }
-    return NULL;
-}
-
-void *sse_store(void *dst, const void *src, size_t sz) {
-    size_t sz_sse = sz / 16;
-    __m128 *vdst = dst;
-    // const volatile __m128 *vsrc = src;
-
-    for (size_t i = 0; i < sz_sse; i += 8) {
-        vdst[i + 0] = _mm_setzero_ps();
-        vdst[i + 1] = _mm_setzero_ps();
-        vdst[i + 2] = _mm_setzero_ps();
-        vdst[i + 3] = _mm_setzero_ps();
-
-        vdst[i + 4] = _mm_setzero_ps();
-        vdst[i + 5] = _mm_setzero_ps();
-        vdst[i + 6] = _mm_setzero_ps();
-        vdst[i + 7] = _mm_setzero_ps();
-    }
-    return NULL;
-}
-
-void *avx_load(void *dst, const void *src, size_t sz) {
-    size_t sz_sse = sz / 32;
-    //__m128 *vdst = dst;
-    const volatile __m256 *vsrc = src;
-
-    for (size_t i = 0; i < sz_sse; i += 4) {
-        vsrc[i + 0];
-        vsrc[i + 1];
-        vsrc[i + 2];
-        vsrc[i + 3];
-    }
-    return NULL;
-}
-
-void *avx_store(void *dst, const void *src, size_t sz) {
-    size_t sz_sse = sz / 32;
-    __m256 *vdst = dst;
-    // const volatile __m128 *vsrc = src;
-
-    for (size_t i = 0; i < sz_sse; i += 4) {
-        vdst[i + 0] = _mm256_setzero_ps();
-        vdst[i + 1] = _mm256_setzero_ps();
-        vdst[i + 2] = _mm256_setzero_ps();
-        vdst[i + 3] = _mm256_setzero_ps();
-    }
-    return NULL;
-}
-
-void *sse_stream_store(void *dst, const void *src, size_t sz) {
-    size_t sz_sse = sz / 16;
-    __m128 *vdst = dst;
-    // const volatile __m128 *vsrc = src;
-
-    for (size_t i = 0; i < sz_sse; i += 4) {
-        _mm_stream_ps((float *)&vdst[i + 0], _mm_setzero_ps());
-        _mm_stream_ps((float *)&vdst[i + 1], _mm_setzero_ps());
-        _mm_stream_ps((float *)&vdst[i + 2], _mm_setzero_ps());
-        _mm_stream_ps((float *)&vdst[i + 3], _mm_setzero_ps());
-    }
-    return NULL;
-}
-
-void *rep_movsb(void *dst, const void *src, size_t sz) {
-    asm volatile("rep movsb"
-                 : "=D"(dst), "=S"(src), "=c"(sz)
-                 : "0"(dst), "1"(src), "2"(sz)
-                 : "memory");
-    return NULL;
-}
-
-void *rep_stosb(void *dst, const void *src, size_t sz) {
-    asm volatile("rep stosb"
-                 : "=D"(dst), "=S"(src), "=c"(sz)
-                 : "0"(dst), "1"(src), "2"(sz)
-                 : "memory");
-    return NULL;
-}
-
-int main(int argc, char **argv) {
-    int nproc = sysconf(_SC_NPROCESSORS_ONLN);
-    size_t max_size = 128 * 1024 * 1024;
-
-    int opt;
-
-    nproc -= 2;
-    if (nproc <= 1) {
-        nproc = 1;
-    }
-
-    while ((opt = getopt(argc, argv, "t:s:")) != -1) {
-        switch (opt) {
-        case 't':
-            nproc = atoi(optarg);
-            break;
-
-        case 's':
-            max_size = atoi(optarg) * 1024 * 1024;
-            break;
-
-        default:
-            fprintf(stderr, "Usage: %s [-t num_thread] [-s size[MB]]\n",
-                    argv[0]);
-            return 1;
-        }
-    }
-
-    char *src = mmap(0, max_size * nproc, PROT_READ | PROT_WRITE,
-                     MAP_PRIVATE | MAP_POPULATE | MAP_ANONYMOUS, 0, 0);
-    char *dst = mmap(0, max_size * nproc, PROT_READ | PROT_WRITE,
-                     MAP_PRIVATE | MAP_POPULATE | MAP_ANONYMOUS, 0, 0);
-
-    if (src == MAP_FAILED || dst == MAP_FAILED) {
-        perror("mmap");
-        exit(1);
-    }
-
-    memset(src, 0, max_size * nproc);
-    memset(dst, 0, max_size * nproc);
-
-    struct thread_shared *ts = calloc(1, sizeof(*ts) * nproc - 1);
-
-    for (int ti = 0; ti < nproc - 1; ti++) {
-
-        ts[ti].ti = ti + 1;
-        ts[ti].src = src;
-        ts[ti].dst = dst;
-        ts[ti].max_size = max_size;
-
-        pthread_create(&ts[ti].t, NULL, thread_fn, &ts[ti]);
-    }
-
-    do_test(ts, dst, src, max_size, nproc, libc_memset, "libc-memset", 1);
-    do_test(ts, dst, src, max_size, nproc, memcpy, "libc-memcpy", 2);
-    do_test(ts, dst, src, max_size, nproc, sse_load, "sse-load", 1);
-    do_test(ts, dst, src, max_size, nproc, sse_store, "sse-store", 1);
-    do_test(ts, dst, src, max_size, nproc, sse_store, "sse-stream-store", 1);
-    do_test(ts, dst, src, max_size, nproc, avx_load, "avx-load", 1);
-    do_test(ts, dst, src, max_size, nproc, avx_store, "avx-store", 1);
-    do_test(ts, dst, src, max_size, nproc, rep_movsb, "rep-movsb", 2);
-    do_test(ts, dst, src, max_size, nproc, rep_stosb, "rep-stosb", 1);
-    do_test(ts, dst, src, max_size, nproc, amd_clzero, "amd_clzero", 1);
-
-    for (int ti = 0; ti < nproc - 1; ti++) {
-        ts[ti].start = 2;
-
-        pthread_join(ts[ti].t, NULL);
-    }
-}
-
 #endif
 
 struct MemoryBandwidth : public BenchDesc {
     typedef Table1D<double, std::string> table_t;
+    bool full_thread;
 
     MemoryBandwidth(bool full_thread)
-        : BenchDesc(full_thread ? "memory-bandwidth full thread (16Mib/thread)"
-                                : "memory-bandwidth 1thread (16Mib)") {}
+        : BenchDesc(full_thread ? "membw_mt"
+                    : "membw_1t"), full_thread(full_thread) {}
 
     virtual result_t run(GlobalState *g) override {
         int ncopy_test = sizeof(copy_tests) / sizeof(copy_tests[0]);
         int nload_test = sizeof(load_tests) / sizeof(load_tests[0]);
         int nstore_test = sizeof(store_tests) / sizeof(store_tests[0]);
 
-        int ntest = ncopy_test + nload_test + nstore_test;
-
+        int ntest = 0;
         std::vector<std::string> test_name_list;
 
-        for (int i=0; i<ncopy_test; i++) {
-            test_name_list.push_back(copy_tests[i].name);
+        for (int i = 0; i < ncopy_test; i++) {
+            if (copy_tests[i].supported()) {
+                test_name_list.push_back(copy_tests[i].name);
+                ntest++;
+            }
         }
-        for (int i=0; i<nload_test; i++) {
-            test_name_list.push_back(load_tests[i].name);
+        for (int i = 0; i < nload_test; i++) {
+            if (load_tests[i].supported()) {
+                test_name_list.push_back(load_tests[i].name);
+                ntest++;
+            }
         }
-        for (int i=0; i<nstore_test; i++) {
-            test_name_list.push_back(store_tests[i].name);
+        for (int i = 0; i < nstore_test; i++) {
+            if (store_tests[i].supported()) {
+                test_name_list.push_back(store_tests[i].name);
+                ntest++;
+            }
         }
 
         table_t *result = new table_t("test_name", ntest);
         result->column_label = "MiB/sec";
-        // result->row_label = cores;
+        result->row_label = test_name_list;
+
+        int nthread = 1;
+        if (this->full_thread) {
+            if (g->cpus.ncpu_all > 4) {
+                nthread = g->cpus.ncpu_all - 1;
+            } else {
+                nthread = g->cpus.ncpu_all;
+            }
+        }
+
+        size_t test_size = 128*1024*1024 / nthread;
+
+        ThreadInfo *threads = init_threads(g, nthread, 0.1, test_size);
+
+        union fn_union fn;
+        int cur = 0;
+
+        for (int i=0; i<ncopy_test; i++) {
+            if (copy_tests[i].supported()) {
+                fn.p_copy_fn = copy_tests[i].op;
+                double bps = run1(threads, nthread, memop::COPY, fn);
+                result->v[cur] = (bps*2) / (1024.0*1024.0); // MiB
+                cur++;
+            }
+        }
+
+        for (int i=0; i<nload_test; i++) {
+            if (load_tests[i].supported()) {
+                fn.p_load_fn = load_tests[i].op;
+                double bps = run1(threads, nthread, memop::LOAD, fn);
+                result->v[cur] = bps / (1024.0*1024.0); // MiB
+                cur++;
+            }
+        }
+
+        for (int i=0; i<nstore_test; i++) {
+            if (store_tests[i].supported()) {
+                fn.p_store_fn = store_tests[i].op;
+                double bps = run1(threads, nthread, memop::STORE, fn);
+                result->v[cur] = bps / (1024.0*1024.0); // MiB
+                cur++;
+            }
+        }
+
+        finish_threads(threads, nthread);
 
         return result_t(result);
     }
