@@ -325,7 +325,7 @@ static void finish_threads(ThreadInfo *t, int num_thread) {
         wait_thread(t[i].t);
     }
 
-    delete [] t;
+    delete[] t;
 }
 
 } // namespace
@@ -407,8 +407,8 @@ struct MemoryBandwidth : public BenchDesc {
     bool full_thread;
 
     MemoryBandwidth(bool full_thread)
-        : BenchDesc(full_thread ? "membw_mt"
-                    : "membw_1t"), full_thread(full_thread) {}
+        : BenchDesc(full_thread ? "membw_mt" : "membw_1t"),
+          full_thread(full_thread) {}
 
     virtual result_t run(GlobalState *g) override {
         int ncopy_test = sizeof(copy_tests) / sizeof(copy_tests[0]);
@@ -450,36 +450,36 @@ struct MemoryBandwidth : public BenchDesc {
             }
         }
 
-        size_t test_size = 128*1024*1024 / nthread;
+        size_t test_size = 128 * 1024 * 1024 / nthread;
 
         ThreadInfo *threads = init_threads(g, nthread, 0.1, test_size);
 
         union fn_union fn;
         int cur = 0;
 
-        for (int i=0; i<ncopy_test; i++) {
+        for (int i = 0; i < ncopy_test; i++) {
             if (copy_tests[i].supported()) {
                 fn.p_copy_fn = copy_tests[i].op;
                 double bps = run1(threads, nthread, memop::COPY, fn);
-                result->v[cur] = (bps*2) / (1024.0*1024.0); // MiB
+                result->v[cur] = (bps * 2) / (1024.0 * 1024.0); // MiB
                 cur++;
             }
         }
 
-        for (int i=0; i<nload_test; i++) {
+        for (int i = 0; i < nload_test; i++) {
             if (load_tests[i].supported()) {
                 fn.p_load_fn = load_tests[i].op;
                 double bps = run1(threads, nthread, memop::LOAD, fn);
-                result->v[cur] = bps / (1024.0*1024.0); // MiB
+                result->v[cur] = bps / (1024.0 * 1024.0); // MiB
                 cur++;
             }
         }
 
-        for (int i=0; i<nstore_test; i++) {
+        for (int i = 0; i < nstore_test; i++) {
             if (store_tests[i].supported()) {
                 fn.p_store_fn = store_tests[i].op;
                 double bps = run1(threads, nthread, memop::STORE, fn);
-                result->v[cur] = bps / (1024.0*1024.0); // MiB
+                result->v[cur] = bps / (1024.0 * 1024.0); // MiB
                 cur++;
             }
         }
