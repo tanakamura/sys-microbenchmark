@@ -138,6 +138,7 @@ union fn_union {
 
 struct ThreadInfo {
     thread_handle_t t;
+    int self_cpu;
     int total_thread_num;
 
     Pipe notify_to_copy_thread;
@@ -157,6 +158,7 @@ struct ThreadInfo {
 };
 
 static inline void invoke_memory_func(ThreadInfo *ti, void *dst, void *src) {
+    uint64_t r;
     switch (ti->com) {
     case memop::COPY:
         ti->fn.p_copy_fn(dst, src, ti->buffer_size);
@@ -167,7 +169,8 @@ static inline void invoke_memory_func(ThreadInfo *ti, void *dst, void *src) {
         break;
 
     case memop::LOAD:
-        ti->fn.p_load_fn(src, ti->buffer_size);
+        r = ti->fn.p_load_fn(src, ti->buffer_size);
+        ti->g->dummy_write(ti->self_cpu, r);
         break;
 
     case memop::QUIT:
@@ -225,6 +228,7 @@ static const CopyTest copy_tests[] = {
     {"gccvec128-copy", gccvec128_copy_test, T},
 
 #ifdef X86
+    {"sse-stream-copy", sse_stream_copy, T},
     {"avx256-copy", avx256_copy, have_avx},
     {"avx512-copy", avx512_copy, have_avx512f},
 
@@ -308,6 +312,7 @@ static ThreadInfo *init_threads(const GlobalState *g, int num_thread,
         t[i].g = g;
 
         t[i].t = spawn_thread_on_proc(mem_thread, &t[i], cpu_on, &g->cpus);
+        t[i].self_cpu = cpu_on;
 
         cpu_on = g->cpus.next_cpu_pos(cpu_on);
     }
@@ -445,6 +450,7 @@ struct MemoryBandwidth : public BenchDesc {
         if (this->full_thread) {
             if (g->cpus.ncpu_all > 4) {
                 nthread = g->cpus.ncpu_all - 1;
+                nthread = 4;
             } else {
                 nthread = g->cpus.ncpu_all;
             }

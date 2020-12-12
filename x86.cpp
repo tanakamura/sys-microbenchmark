@@ -115,6 +115,24 @@ void sse_stream_store(void *dst, size_t sz) {
     }
 }
 
+void sse_stream_copy(void *dst, const void *src, size_t sz) {
+    size_t nloop = sz / 16;
+    __m128i *vd = (__m128i*)dst;
+    __m128i *vs = (__m128i*)src;
+
+    for (size_t i=0; i<nloop; i+=4) {
+        __m128i v0 = vs[i + 0];
+        __m128i v1 = vs[i + 1];
+        __m128i v2 = vs[i + 2];
+        __m128i v3 = vs[i + 3];
+
+        _mm_stream_si128(&vd[i + 0], v0);
+        _mm_stream_si128(&vd[i + 1], v1);
+        _mm_stream_si128(&vd[i + 2], v2);
+        _mm_stream_si128(&vd[i + 3], v3);
+    }
+}
+
 }
 
 #endif

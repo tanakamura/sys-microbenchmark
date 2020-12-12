@@ -8,6 +8,7 @@ namespace smbm {
 
 #ifdef X86
 extern void sse_stream_store(void *dst, size_t sz);
+extern void sse_stream_copy(void *dst, const void *src, size_t sz);
 
 extern void avx256_copy(void *dst, void const *src, size_t sz);
 extern uint64_t avx256_load(void const *src, size_t sz);
