@@ -197,6 +197,8 @@ static void *mem_thread(void *p) {
 
         wait_barrier(ti->start_barrier, ti->total_thread_num);
 
+        auto t0 = userland_timer_value::get();
+
         oneshot_timer ot(16);
         uint64_t call_count = 0;
 
@@ -209,8 +211,9 @@ static void *mem_thread(void *p) {
         }
 
         wait_barrier(ti->end_barrier, ti->total_thread_num);
+        auto t1 = userland_timer_value::get();
 
-        ti->actual_sec = ot.actual_interval_sec(ti->g);
+        ti->actual_sec = ti->g->userland_timer_delta_to_sec(t1 - t0);
         ti->total_transfer = call_count * ti->buffer_size;
 
         write_pipe(&ti->notify_from_copy_thread, 0);
@@ -450,7 +453,6 @@ struct MemoryBandwidth : public BenchDesc {
         if (this->full_thread) {
             if (g->cpus.ncpu_all > 4) {
                 nthread = g->cpus.ncpu_all - 1;
-                nthread = 4;
             } else {
                 nthread = g->cpus.ncpu_all;
             }
