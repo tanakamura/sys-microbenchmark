@@ -56,7 +56,8 @@ struct BenchDesc {
     F(memory_bandwidth_1thread)                                                 \
     F(memory_bandwidth_full_thread)                                     \
     F(cache_bandwidth)                                                  \
-    F(memory_random_access)
+    F(memory_random_access_seq)                                         \
+    F(memory_random_access_para)                                         \
 
 #define DEFINE_ENTRY(B) std::unique_ptr<BenchDesc> get_##B##_desc();
 

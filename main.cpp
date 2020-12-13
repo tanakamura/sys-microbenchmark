@@ -109,6 +109,7 @@ int main(int argc, char **argv) {
     data[12] = 0;
 
     this_obj["cpuid"] = picojson::value((char*)data);
+    puts((char*)data);
 #else
     this_obj["cpuid"] = picojson::value("unknown");
 #endif
