@@ -170,7 +170,7 @@ union cpu_dt_value {
 };
 
 struct GlobalState {
-    CPUSet cpus;
+    ProcessorTable proc_table;
 
 #ifdef HAVE_USERLAND_CPUCOUNTER
     double userland_cpucounter_freq;

@@ -19,6 +19,12 @@
 #define HAVE_CLOCK_GETTIME
 #define HAVE_GNU_CPU_SET
 #include <time.h>
+
+#elif defined _WIN64
+
+#define WINDOWS
+#include <windows.h>
+
 #endif
 
 #if (defined X86) || (defined __aarch64__)

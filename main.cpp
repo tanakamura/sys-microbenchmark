@@ -128,8 +128,6 @@ int main(int argc, char **argv) {
     this_obj["cpuid"] = picojson::value("unknown");
 #endif
 
-    ScopedSetAffinity sa(ScopedSetAffinity::bind_self_to_1proc(&g.cpus));
-
     warmup_thread(&g);
 
     {

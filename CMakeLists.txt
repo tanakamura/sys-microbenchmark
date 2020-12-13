@@ -1,6 +1,18 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.1)
 
-enable_testing()
+project(sys-microbenchmark)
+
+option(MINGW_CROSS "" OFF)
+
+if (MINGW_CROSS)
+  set(MINGW_TOOLCHAIN_PREFIX x86_64-w64-mingw32- CACHE STRING "")
+
+  set(CMAKE_SYSTEM_NAME Windows)
+  set(CMAKE_CXX_COMPILER ${MINGW_TOOLCHAIN_PREFIX}g++)
+  set(CMAKE_C_COMPILER ${MINGW_TOOLCHAIN_PREFIX}g++)
+else()
+  enable_testing()
+endif()
 
 find_package(Threads REQUIRED)
 

@@ -1,45 +1,42 @@
 #pragma once
 
 #include <sched.h>
+#include <vector>
+#include "features.h"
 
 namespace smbm {
 
-struct CPUSet {
-    int ncpu_all;
-    cpu_set_t *online_set;
+#ifdef WINDOWS
+#elif defined HAVE_GNU_CPU_SET
+struct ProcessorTable {
+    int ncpu_configured;
+    cpu_set_t *set;
 
-    int first_cpu_pos() const;
-    int next_cpu_pos(int cur) const;
+    std::vector<int> logical_idx_to_os_proc;
 
-    ~CPUSet();
+    int logical_idx2os_idx(int logical_index) const {
+        return logical_idx_to_os_proc[logical_index];
+    }
 
-    void operator=(const CPUSet &) = delete;
+    int get_active_cpu_count() const {
+        return logical_idx_to_os_proc.size();
+    }
 
-    size_t ss() const { return CPU_ALLOC_SIZE(this->ncpu_all); }
+    size_t ss() const { 
+        return CPU_ALLOC_SIZE(this->ncpu_configured);
+    }
 
-    static CPUSet current_all_online();
+    ProcessorTable(const ProcessorTable &rhs)  = delete;
+    void operator=(const ProcessorTable &) = delete;
 
-  private:
-    CPUSet(const CPUSet &) = default;
-    CPUSet();
+    ProcessorTable();
+    ~ProcessorTable() {
+        CPU_FREE(set);
+    }
 };
+#endif
 
-struct ScopedSetAffinity {
-    cpu_set_t *old;
 
-    void operator=(const ScopedSetAffinity &) = delete;
-
-    ~ScopedSetAffinity();
-
-    static ScopedSetAffinity bind_self_to_1proc(CPUSet const *all);
-    static ScopedSetAffinity bind_self_to_all(CPUSet const *all);
-
-  private:
-    ScopedSetAffinity(const ScopedSetAffinity &) = default;
-    ScopedSetAffinity(cpu_set_t *old) : old(old) {}
-};
-
-ScopedSetAffinity bind_self_to_1proc(CPUSet const *all);
-ScopedSetAffinity bind_self_to_all(CPUSet const *all);
+void bind_self_to_1proc(ProcessorTable const *tbl, int idx);
 
 } // namespace smbm

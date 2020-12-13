@@ -261,16 +261,12 @@ static double run1(ThreadInfo *t, int num_thread, memop op, fn_union u) {
     return bytes_per_sec;
 }
 
-static ThreadInfo *init_threads(const GlobalState *g, int num_thread,
+static ThreadInfo *init_threads(const GlobalState *g, int start_proc, int num_thread,
                                 double duration_sec, size_t buffer_size) {
     ThreadInfo *t = new ThreadInfo[num_thread];
 
     std::atomic<int> *start_barrier = new std::atomic<int>;
     std::atomic<int> *end_barrier = new std::atomic<int>;
-
-    int cpu_on = g->cpus.first_cpu_pos();
-
-    cpu_on = g->cpus.next_cpu_pos(cpu_on); // skip control thread
 
     for (int i = 0; i < num_thread; i++) {
         t[i].start_barrier = start_barrier;
@@ -280,10 +276,10 @@ static ThreadInfo *init_threads(const GlobalState *g, int num_thread,
         t[i].buffer_size = buffer_size;
         t[i].g = g;
 
-        t[i].t = spawn_thread_on_proc(mem_thread, &t[i], cpu_on, &g->cpus);
-        t[i].self_cpu = cpu_on;
+        int run_on = start_proc + i;
 
-        cpu_on = g->cpus.next_cpu_pos(cpu_on);
+        t[i].t = spawn_thread_on_proc(mem_thread, &t[i], run_on, &g->proc_table);
+        t[i].self_cpu = run_on;
     }
 
     return t;
@@ -451,18 +447,20 @@ struct MemoryBandwidth : public BenchDesc {
         result->column_label = "MiB/sec";
         result->row_label = test_name_list;
 
+        int start_proc = 0;
         int nthread = 1;
         if (this->full_thread) {
-            if (g->cpus.ncpu_all > 4) {
-                nthread = g->cpus.ncpu_all - 1;
+            if (g->proc_table.get_active_cpu_count() > 4) {
+                start_proc = 1; // skip first proc
+                nthread = g->proc_table.get_active_cpu_count() - 1;
             } else {
-                nthread = g->cpus.ncpu_all;
+                nthread = g->proc_table.get_active_cpu_count();
             }
         }
 
         size_t test_size = 128 * 1024 * 1024 / nthread;
 
-        ThreadInfo *threads = init_threads(g, nthread, 0.1, test_size);
+        ThreadInfo *threads = init_threads(g, start_proc, nthread, 0.1, test_size);
 
         union fn_union fn;
         int cur = 0;

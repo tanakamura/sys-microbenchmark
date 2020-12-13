@@ -46,20 +46,21 @@ static inline void ostimer_delay_loop(GlobalState *g, uint64_t msec) {
     }
 }
 
-GlobalState::GlobalState(bool use_cpu_cycle_counter)
-    : cpus(CPUSet::current_all_online()) {
+GlobalState::GlobalState(bool use_cpu_cycle_counter) {
     void *p = aligned_alloc(64, 64);
 
     this->zero_memory = (uint64_t *)p;
     *this->zero_memory = 0;
 
-    int ncpu = cpus.ncpu_all;
+    int ncpu = proc_table.get_active_cpu_count();
     this->dustbox = new uint64_t *[ncpu];
 
     for (int i = 0; i < ncpu; i++) {
         p = aligned_alloc(64, 64);
         this->dustbox[i] = (uint64_t *)p;
     }
+
+    bind_self_to_1proc(&this->proc_table, 0);
 
 #ifdef HAVE_USERLAND_CPUCOUNTER
     {
@@ -144,14 +145,13 @@ GlobalState::inc_sec_userland_timer(userland_timer_value const *t0,
 GlobalState::~GlobalState() {
     aligned_free(this->zero_memory);
 
-    int ncpu = cpus.ncpu_all;
+    int ncpu = proc_table.get_active_cpu_count();
 
     for (int i = 0; i < ncpu; i++) {
         aligned_free(this->dustbox[i]);
     }
 
-    delete [] this->dustbox;
-
+    delete[] this->dustbox;
 
 #ifdef __linux__
     if (this->use_cpu_cycle_counter) {
