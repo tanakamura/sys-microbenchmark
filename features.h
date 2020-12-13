@@ -15,7 +15,7 @@
 #define _GNU_SOURCE
 #endif
 
-#define HAVE_HW_CPUCYCLE
+#define HAVE_HW_PERF_COUNTER
 #define HAVE_CLOCK_GETTIME
 #define HAVE_GNU_CPU_SET
 #include <time.h>

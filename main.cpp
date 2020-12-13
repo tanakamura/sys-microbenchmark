@@ -14,7 +14,7 @@
 static void
 run(smbm::GlobalState *g,
     std::map<std::string, picojson::value> *this_obj,
-    std::unique_ptr<smbm::BenchDesc> const &b)
+    std::shared_ptr<smbm::BenchDesc> const &b)
 {
     std::cout << "==== " << b->name << " ====\n";
     {
@@ -27,7 +27,9 @@ run(smbm::GlobalState *g,
 
 int main(int argc, char **argv) {
     using namespace smbm;
-    auto bench_list = get_benchmark_list();
+
+    GlobalState g;
+    auto bench_list = g.get_benchmark_list();
 
 #ifdef X86
 #ifdef _WIN32
@@ -45,21 +47,12 @@ int main(int argc, char **argv) {
     std::string json_path = "result.json";
 
     picojson::value root;
-    bool use_cpucycle = false;
 
     {
         while (1) {
-            enum {
-                OPT_USE_CPUCYCLE = 256
-            };
-
             static struct option long_options[] = {
                 {"help", no_argument, 0, 'h'},
                 {"result", required_argument, 0, 'R'},
-
-#ifdef HAVE_HW_CPUCYCLE
-                {"use-cpucycle", no_argument, 0, OPT_USE_CPUCYCLE},
-#endif
 
                 {0,0,0,0},
             };
@@ -82,13 +75,7 @@ int main(int argc, char **argv) {
                 for (auto &&b : bench_list) {
                     printf("    %s\n", b->name.c_str());
                 }
-                exit(0);
-
-#ifdef HAVE_HW_CPUCYCLE
-            case OPT_USE_CPUCYCLE:
-                use_cpucycle = true;
-                break;
-#endif
+                return 0;
 
             case 'R':
                 json_path = optarg;
@@ -105,17 +92,15 @@ int main(int argc, char **argv) {
         }
     }
 
-    GlobalState g(use_cpucycle);
-
     std::map<std::string, picojson::value> this_obj;
 
     this_obj["ostimer"] = picojson::value(ostimer_value::name());
     this_obj["userland_timer"] = picojson::value(userland_timer_value::name());
-    this_obj["use_cpucycle"] = picojson::value(use_cpucycle);
+    this_obj["perf_counter_available"] = picojson::value(g.is_hw_perf_counter_available());
 
     std::cout << "ostimer: " << ostimer_value::name() << '\n';
     std::cout << "userland_timer: " << userland_timer_value::name() << '\n';
-    std::cout << "use_cpucyle: " << (use_cpucycle?"yes":"no") << '\n';
+    std::cout << "perf_counter: " << (g.is_hw_perf_counter_available()?"yes":"no") << '\n';
 
 #ifdef X86
     x_cpuid(data+4*0, 0x80000002);

@@ -153,7 +153,7 @@ struct clock_gettime1 : public no_arg {
     }
 };
 
-template <typename F> double run_test(GlobalState *g, F *f) {
+template <typename F> double run_test(const GlobalState *g, F *f) {
     auto a = f->alloc_arg();
 
     f->run(a);
@@ -191,7 +191,7 @@ template <typename F> double run_test(GlobalState *g, F *f) {
 struct Syscall : public BenchDesc {
     Syscall() : BenchDesc("syscall") {}
 
-    virtual result_t run(GlobalState *g) override {
+    virtual result_t run(GlobalState const *g) override {
         int count = 0;
 #define INC_COUNT(F) count++;
         FOR_EACH_TEST(INC_COUNT);

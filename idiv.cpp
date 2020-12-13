@@ -4,8 +4,25 @@
 
 namespace smbm {
 
-template<typename int_t, bool is_32>
-std::unique_ptr<BenchResult> run(GlobalState *g) {
+template <bool use_perf_counter> auto get_count(GlobalState const *g);
+
+#ifdef HAVE_HW_PERF_COUNTER
+template<>
+auto
+get_count<true>(GlobalState const *g) {
+    return g->get_hw_cpucycle();
+}
+
+#endif
+
+template<>
+auto
+get_count<false>(GlobalState const *g) {
+    return userland_timer_value::get();
+}
+
+template<typename int_t, bool is_32, bool use_perf_counter>
+std::unique_ptr<BenchResult> run(GlobalState const *g) {
     int n_divider_bit = 63;
     int n_divisor_bit = 63;
 
@@ -32,7 +49,7 @@ std::unique_ptr<BenchResult> run(GlobalState *g) {
             int_t divider = (int_t)((1ULL << divider_bit) - 1);
             int_t zero = g->getzero();
 
-            auto t0 = g->get_cputime();
+            auto t0 = get_count<use_perf_counter>(g);
             int nloop = 2048;
 
             for (int i=0; i<nloop; i++) {
@@ -44,10 +61,10 @@ std::unique_ptr<BenchResult> run(GlobalState *g) {
                     divisor |= x;
                     );
             }
-            auto t1 = g->get_cputime();
+            auto t1 = get_count<use_perf_counter>(g);
 
             g->dummy_write(0, divisor);
-            double result = g->delta_cputime(&t1,&t0) / (nloop * 16.0);
+            double result = (t1-t0) / (nloop * 16.0);
 
             (*result_table)[divisor_bit][divider_bit - 1] = result;
             max = std::max(max, result);
@@ -57,21 +74,24 @@ std::unique_ptr<BenchResult> run(GlobalState *g) {
     return std::unique_ptr<BenchResult>(result_table);
 }
 
+template <bool use_perf_counter>
 struct IDIV
     :public BenchDesc
 {
     bool is_32;
     IDIV(bool is_32)
-        :BenchDesc(is_32?"idiv32":"idiv64"),
+        :BenchDesc(use_perf_counter
+                   ?(is_32?"idiv32-cycle":"idiv64-cycle")
+                   :(is_32?"idiv32-realtime":"idiv64-realtime")),
          is_32(is_32)
     {
     }
 
-    result_t run(GlobalState *g) override {
+    result_t run(GlobalState const *g) override {
         if (is_32) {
-            return smbm::run<uint32_t,true>(g);
+            return smbm::run<uint32_t,true,use_perf_counter>(g);
         } else {
-            return smbm::run<uint64_t,false>(g);
+            return smbm::run<uint64_t,false,use_perf_counter>(g);
         }
     }
 
@@ -82,13 +102,27 @@ struct IDIV
     int double_precision() override {
         return 1;
     }
+
+    bool available(const GlobalState *g) override {
+        if (use_perf_counter) {
+            return g->is_hw_perf_counter_available();
+        } else {
+            return true;
+        }
+    }
 };
 
 std::unique_ptr<BenchDesc> get_idiv32_desc() {
-    return std::unique_ptr<BenchDesc> (new IDIV(true));
+    return std::unique_ptr<BenchDesc> (new IDIV<false>(true));
 }
 std::unique_ptr<BenchDesc> get_idiv64_desc() {
-    return std::unique_ptr<BenchDesc> (new IDIV(false));
+    return std::unique_ptr<BenchDesc> (new IDIV<false>(false));
+}
+std::unique_ptr<BenchDesc> get_idiv32_cycle_desc() {
+    return std::unique_ptr<BenchDesc> (new IDIV<true>(true));
+}
+std::unique_ptr<BenchDesc> get_idiv64_cycle_desc() {
+    return std::unique_ptr<BenchDesc> (new IDIV<true>(false));
 }
 
 } // namespace smbm

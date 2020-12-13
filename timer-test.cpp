@@ -15,16 +15,16 @@ main()
 {
     using namespace smbm;
 
-    GlobalState g(false);
+    GlobalState g;
 
-    auto t0 = g.get_cputime();
+    auto t0 = userland_timer_value::get();
     sleep(1);
-    auto t1 = g.get_cputime();
+    auto t1 = userland_timer_value::get();
 
-    double dt = g.delta_cputime(&t1, &t0);
+    double dt = g.userland_timer_delta_to_sec(t1-t0);
 
-    double dexpect = fabs(dt - 1e9);
-    if (dexpect > 1e6) {
+    double dexpect = fabs(dt - 1.0);
+    if (dexpect > 1e-3) {
         printf("too large error @ get_cputime delta=%f, %f-%f\n", dexpect, dt, 1e9);
         exit(1);
     }
@@ -48,3 +48,4 @@ main()
     }
     
 }
+

@@ -11,16 +11,6 @@
 #include "memalloc.h"
 
 namespace smbm {
-std::vector<std::unique_ptr<BenchDesc>> get_benchmark_list() {
-    std::vector<std::unique_ptr<BenchDesc>> ret;
-
-#define F(B) ret.push_back(get_##B##_desc());
-
-    FOR_EACH_BENCHMARK_LIST(F);
-
-    return ret;
-}
-
 #ifdef __linux__
 static int perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu,
                            int group_fd, unsigned long flags) {
@@ -46,7 +36,7 @@ static inline void ostimer_delay_loop(GlobalState *g, uint64_t msec) {
     }
 }
 
-GlobalState::GlobalState(bool use_cpu_cycle_counter) {
+GlobalState::GlobalState() {
     void *p = aligned_alloc(64, 64);
 
     this->zero_memory = (uint64_t *)p;
@@ -85,8 +75,8 @@ GlobalState::GlobalState(bool use_cpu_cycle_counter) {
 #endif
 
 #ifdef __linux__
-    this->use_cpu_cycle_counter = use_cpu_cycle_counter;
-    if (use_cpu_cycle_counter) {
+
+    {
         struct perf_event_attr attr;
         memset(&attr, 0, sizeof(attr));
 
@@ -98,13 +88,24 @@ GlobalState::GlobalState(bool use_cpu_cycle_counter) {
         this->perf_fd = perf_event_open(&attr, 0, -1, -1, 0);
 
         if (this->perf_fd == -1) {
-            perror("perf_vent_open");
+            this->hw_perf_counter_available = false;
+
+            perror("perf_event_open");
             fprintf(stderr,
                     "note : echo -1 > /proc/sys/kernel/perf_event_paranoid\n");
-            exit(1);
+        } else {
+            this->hw_perf_counter_available = true;
         }
     }
+
 #endif
+
+
+#define F(B) { auto x = std::shared_ptr<BenchDesc>(get_##B##_desc()); if (x->available(this)) {this->bench_list.push_back(x);}};
+    FOR_EACH_BENCHMARK_LIST(F);
+
+
+
 }
 
 double GlobalState::userland_timer_delta_to_sec(uint64_t delta) const {
@@ -154,12 +155,13 @@ GlobalState::~GlobalState() {
     delete[] this->dustbox;
 
 #ifdef __linux__
-    if (this->use_cpu_cycle_counter) {
+    if (this->hw_perf_counter_available) {
         close(this->perf_fd);
     }
 #endif
 }
 
+#ifdef __linux__
 uint64_t GlobalState::get_hw_cpucycle() const {
     long long val;
     ssize_t sz = read(this->perf_fd, &val, sizeof(val));
@@ -170,15 +172,7 @@ uint64_t GlobalState::get_hw_cpucycle() const {
 
     return val;
 }
-
-double GlobalState::delta_cputime(cpu_dt_value const *l,
-                                  cpu_dt_value const *r) const {
-    if (this->use_cpu_cycle_counter) {
-        return l->hw_cpu_cycle - r->hw_cpu_cycle;
-    } else {
-        return userland_timer_delta_to_sec(l->tv - r->tv) * 1e9; // nsec
-    }
-}
+#endif
 
 void warmup_thread(const GlobalState *g) {
     oneshot_timer ot(1024);

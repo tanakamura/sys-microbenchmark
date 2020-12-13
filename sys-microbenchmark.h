@@ -41,21 +41,22 @@ struct BenchDesc {
     typedef std::unique_ptr<BenchResult> result_t;
     BenchDesc(std::string const &s) : name(s) {}
     virtual ~BenchDesc() {}
-    virtual result_t run(GlobalState *g) = 0;
+    virtual result_t run(GlobalState const *g) = 0;
     virtual result_t parse_json_result(picojson::value const &v) = 0;
     virtual int double_precision() { return PRINT_DOUBLE_PRECISION; }
+    virtual bool available(GlobalState const *g) { return true; }
 };
 
 #define FOR_EACH_BENCHMARK_LIST(F)                                             \
     F(idiv32)                                                                  \
     F(idiv64)                                                                  \
+    F(idiv32_cycle)                                                                  \
+    F(idiv64_cycle)                                                           \
     F(syscall)                                                                 \
     F(memory_bandwidth_1thread)                                                 \
     F(memory_bandwidth_full_thread)                                     \
     F(cache_bandwidth)                                                  \
     F(memory_random_access)
-
-std::vector<std::unique_ptr<BenchDesc>> get_benchmark_list();
 
 #define DEFINE_ENTRY(B) std::unique_ptr<BenchDesc> get_##B##_desc();
 
@@ -164,25 +165,35 @@ struct userland_timer_value {
 #endif
 };
 
-union cpu_dt_value {
-    struct userland_timer_value tv;
-    uint64_t hw_cpu_cycle;
-};
+typedef uint64_t perf_counter_value_t;
 
 struct GlobalState {
     ProcessorTable proc_table;
+
+    std::vector<std::shared_ptr<BenchDesc>> bench_list;
+    std::vector<std::shared_ptr<BenchDesc>> get_benchmark_list() {
+        return bench_list;
+    }
 
 #ifdef HAVE_USERLAND_CPUCOUNTER
     double userland_cpucounter_freq;
 #endif
 
-#ifdef __linux__
+#ifdef HAVE_HW_PERF_COUNTER
     int perf_fd;
+    bool hw_perf_counter_available;
+    bool is_hw_perf_counter_available() const {
+        return hw_perf_counter_available;
+    }
+#else
+    bool is_hw_perf_counter_available() {
+        return false;
+    }
 #endif
 
     userland_timer_value
     inc_sec_userland_timer(struct userland_timer_value const *t, double sec) const;
-    GlobalState(bool use_cpu_cycle_counter);
+    GlobalState();
     ~GlobalState();
     double userland_timer_delta_to_sec(uint64_t delta) const;
 
@@ -197,46 +208,10 @@ struct GlobalState {
         dustbox[cpu][0] = val;
     };
 
-#ifdef HAVE_HW_CPUCYCLE
-    bool use_cpu_cycle_counter;
-
-    uint64_t get_hw_cpucycle() const ;
-
-    cpu_dt_value get_cputime() const {
-        cpu_dt_value ret;
-        if (use_cpu_cycle_counter) {
-            ret.hw_cpu_cycle = get_hw_cpucycle();
-        } else {
-            ret.tv = userland_timer_value::get();
-        }
-        return ret;
-    }
-
-    ResultValueUnit get_cputime_unit() const {
-        if (use_cpu_cycle_counter) {
-            return ResultValueUnit::CPU_HW_CYCLES;
-        } else {
-            return ResultValueUnit::REALTIME_NSEC;
-        }
-    }
-
-    double delta_cputime(cpu_dt_value const *l, cpu_dt_value const *r) const ;
-#else
-
-    cpu_timer get_cputime() const {
-        cpu_timer ret;
-        ret.tv = userland_timer_value::get();
-        return ret;
-    }
-
-    ResultValueUnit get_cputime_unit() const {
-        return ResultValueUnit::REALTIME_NSEC;
-    }
-
-    double delta_cputime(cpu_dt_value const *l, cpu_dt_value const *r) const {
-        return userland_timer_value_to_nsec(l->tv - r->tv);
-    }
-
+#ifdef HAVE_HW_PERF_COUNTER
+    perf_counter_value_t get_hw_cpucycle() const;
+    perf_counter_value_t get_hw_branch_miss() const;
+    perf_counter_value_t get_hw_cache_miss() const;
 #endif
 
     uint64_t ostimer_delta_to_nsec_scale() { return 1; }

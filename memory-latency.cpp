@@ -10,7 +10,7 @@ struct MemoryLatency : public BenchDesc {
 
     MemoryLatency() : BenchDesc("memory-random-access") {}
 
-    virtual result_t run(GlobalState *g) override {
+    virtual result_t run(GlobalState const *g) override {
         std::vector<int> range_cands;
 
         for (int x = 4; x < 512 * 1024; x *= 2) {

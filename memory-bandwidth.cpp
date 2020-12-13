@@ -416,7 +416,7 @@ struct MemoryBandwidth : public BenchDesc {
         : BenchDesc(full_thread ? "membw_mt" : "membw_1t"),
           full_thread(full_thread) {}
 
-    virtual result_t run(GlobalState *g) override {
+    virtual result_t run(const GlobalState *g) override {
         int ncopy_test = sizeof(copy_tests) / sizeof(copy_tests[0]);
         int nload_test = sizeof(load_tests) / sizeof(load_tests[0]);
         int nstore_test = sizeof(store_tests) / sizeof(store_tests[0]);
@@ -509,7 +509,7 @@ struct CacheBandwidth : public BenchDesc {
         :BenchDesc("cache-bandwidth")
     {}
 
-    virtual result_t run(GlobalState *g) override {
+    virtual result_t run(const GlobalState *g) override {
         return result_t(new table_t("amount", "thread num", 4, 4));
     }
 
