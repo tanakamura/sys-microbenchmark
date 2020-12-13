@@ -18,6 +18,10 @@ add_library(libsys-microbenchmark
   x86-avx.cpp
   x86-avx512.cpp
   x86.cpp
+
+  aarch64.cpp
+
+  unknown-arch.cpp
 )
 
 set_source_files_properties(x86-avx.cpp PROPERTIES COMPILE_FLAGS -mavx)

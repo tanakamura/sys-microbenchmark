@@ -1,7 +1,13 @@
 #pragma once
 
+#include <stdint.h>
+
 #if (defined __i386__) || (defined __x86_64__)
 #define X86
+#elif (defined __aarch64__)
+#define AARCH64
+#else
+#define UNKNOWN_ARCH
 #endif
 
 #ifdef __linux__
@@ -22,3 +28,7 @@
 #ifndef HAVE_USERLAND_CPUCOUNTER
 #define USE_OS_TIMECOUNTER
 #endif
+
+namespace smbm {
+typedef uint64_t vec128i __attribute__((vector_size(16)));
+}

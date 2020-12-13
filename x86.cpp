@@ -1,4 +1,6 @@
 #include "x86funcs.h"
+#include "memory-bandwidth.h"
+#include "cpu-feature.h"
 
 #ifdef X86
 #include <immintrin.h>
@@ -130,6 +132,16 @@ void sse_stream_copy(void *dst, const void *src, size_t sz) {
         _mm_stream_si128(&vd[i + 1], v1);
         _mm_stream_si128(&vd[i + 2], v2);
         _mm_stream_si128(&vd[i + 3], v3);
+    }
+}
+
+load_func_t get_architecture_load_func(GlobalState *g) {
+    if (have_avx512f()) {
+        return avx512_load;
+    } else if (have_avx()) {
+        return avx256_load;
+    } else {
+        return gccvec128_load_test;
     }
 }
 

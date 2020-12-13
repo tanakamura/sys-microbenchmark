@@ -7,11 +7,11 @@
 
 namespace smbm {
 
-template <typename T, typename LT> struct Table2D;
+template <typename T, typename ROW_LABEL_T, typename COLUMN_LABEL_T> struct Table2D;
 template <typename T, typename LT> struct Table1D;
 
-template <typename T, typename LT>
-void dump2d(std::ostream &out, Table2D<T, LT> *t, bool uniform_width,
+template <typename T, typename ROW_LABEL_T, typename COLUMN_LABEL_T>
+void dump2d(std::ostream &out, Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *t, bool uniform_width,
             int double_precision);
 
 template <typename T, typename LT>
@@ -59,11 +59,11 @@ void from_jv(picojson::value const &jv, std::vector<T> *vec) {
 
 } // namespace detail
 
-template <typename T, typename LT> struct Table2D : BenchResult {
+template <typename T, typename ROW_LABEL_T, typename COLUMN_LABEL_T = ROW_LABEL_T> struct Table2D : BenchResult {
     std::string label[2];
     std::vector<T> v;
-    std::vector<LT> column_label;
-    std::vector<LT> row_label;
+    std::vector<COLUMN_LABEL_T> column_label;
+    std::vector<ROW_LABEL_T> row_label;
     int d1, d0;
 
     Table2D(std::string const &d1_label, std::string const &d0_label, int d1,
@@ -101,8 +101,8 @@ template <typename T, typename LT> struct Table2D : BenchResult {
         return picojson::value(ret);
     }
 
-    static Table2D<T, LT> *parse_json_result(picojson::value const &value) {
-        typedef Table2D<T, LT> ret_t;
+    static Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *parse_json_result(picojson::value const &value) {
+        typedef Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> ret_t;
         typedef picojson::value v_t;
         using namespace detail;
 
@@ -204,8 +204,8 @@ inline void insert_char_n(std::ostream &out, char c, int n) {
     }
 }
 
-template <typename T, typename LT>
-void dump2d(std::ostream &out, Table2D<T, LT> *t, bool uniform_width,
+template <typename T, typename ROW_LABEL_T, typename COLUMN_LABEL_T>
+void dump2d(std::ostream &out, Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *t, bool uniform_width,
             int double_precision) {
     std::vector<unsigned int> max_column(t->d0, 0);
     unsigned int row_label_max_column = 0;

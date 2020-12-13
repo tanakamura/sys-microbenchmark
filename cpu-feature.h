@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sys-microbenchmark.h"
+#include "features.h"
 
 namespace smbm {
 

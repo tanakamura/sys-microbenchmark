@@ -52,6 +52,7 @@ struct BenchDesc {
     F(syscall)                                                                 \
     F(memory_bandwidth_1thread)                                                 \
     F(memory_bandwidth_full_thread)                                     \
+    F(cache_bandwidth)                                                  \
     F(memory_random_access)
 
 std::vector<std::unique_ptr<BenchDesc>> get_benchmark_list();

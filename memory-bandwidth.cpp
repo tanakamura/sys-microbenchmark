@@ -1,4 +1,5 @@
 #include "cpu-feature.h"
+#include "memory-bandwidth.h"
 #include "ipc.h"
 #include "memalloc.h"
 #include "oneshot_timer.h"
@@ -33,16 +34,6 @@ static void memcpy_test(void *dst, void const *src, size_t sz) {
 }
 static void memset_test(void *dst, size_t sz) { memset(dst, 0, sz); }
 
-static uint64_t simple_long_sum_test(void const *src, size_t sz) {
-    size_t nloop = sz / 8;
-    const uint64_t *p = (const uint64_t *)src;
-    uint64_t sum = 0;
-
-    for (size_t i = 0; i < nloop; i++) {
-        sum += p[i];
-    }
-    return sum;
-}
 static void simple_long_copy_test(void *dst, void const *src, size_t sz) {
     size_t nloop = sz / 8;
     const uint64_t *ps = (const uint64_t *)src;
@@ -63,31 +54,6 @@ static void simple_long_store_test(void *dst, size_t sz) {
 
 static bool T() { return true; }
 
-typedef uint64_t vec128i __attribute__((vector_size(16)));
-
-static uint64_t gccvec128_load_test(void const *src, size_t sz) {
-    size_t nloop = sz / 16;
-    const vec128i *p = (const vec128i *)src;
-
-    vec128i sum0 = {0, 0};
-    vec128i sum1 = {0, 0};
-    vec128i sum2 = {0, 0};
-    vec128i sum3 = {0, 0};
-
-    for (size_t i = 0; i < nloop; i += 4) {
-        sum0 += p[i + 0];
-        sum1 += p[i + 1];
-        sum2 += p[i + 2];
-        sum3 += p[i + 3];
-    }
-
-    sum0 = sum0 + sum1;
-    sum2 = sum2 + sum3;
-
-    sum0 = sum0 + sum2;
-
-    return sum0[0] + sum0[1];
-}
 static void gccvec128_copy_test(void *dst, void const *src, size_t sz) {
     size_t nloop = sz / 16;
     const vec128i *ps = (const vec128i *)src;
@@ -338,6 +304,42 @@ static void finish_threads(ThreadInfo *t, int num_thread) {
 
 } // namespace
 
+uint64_t gccvec128_load_test(void const *src, size_t sz) {
+    size_t nloop = sz / 16;
+    const vec128i *p = (const vec128i *)src;
+
+    vec128i sum0 = {0, 0};
+    vec128i sum1 = {0, 0};
+    vec128i sum2 = {0, 0};
+    vec128i sum3 = {0, 0};
+
+    for (size_t i = 0; i < nloop; i += 4) {
+        sum0 += p[i + 0];
+        sum1 += p[i + 1];
+        sum2 += p[i + 2];
+        sum3 += p[i + 3];
+    }
+
+    sum0 = sum0 + sum1;
+    sum2 = sum2 + sum3;
+
+    sum0 = sum0 + sum2;
+
+    return sum0[0] + sum0[1];
+}
+
+uint64_t simple_long_sum_test(void const *src, size_t sz) {
+    size_t nloop = sz / 8;
+    const uint64_t *p = (const uint64_t *)src;
+    uint64_t sum = 0;
+
+    for (size_t i = 0; i < nloop; i++) {
+        sum += p[i];
+    }
+    return sum;
+}
+
+
 #if 0
 static void do_test(struct thread_shared *clients, char *dst, char *src,
                     size_t max_size, int nproc, opfn_t opfn,
@@ -502,11 +504,34 @@ struct MemoryBandwidth : public BenchDesc {
     }
 };
 
+struct CacheBandwidth : public BenchDesc {
+    typedef Table2D<double, std::string, int> table_t; // row=bytes, column=thread
+
+    CacheBandwidth()
+        :BenchDesc("cache-bandwidth")
+    {}
+
+    virtual result_t run(GlobalState *g) override {
+        return result_t(new table_t("amount", "thread num", 4, 4));
+    }
+
+
+    virtual result_t parse_json_result(picojson::value const &v) {
+        return result_t(table_t::parse_json_result(v));
+    }
+};
+
+
 std::unique_ptr<BenchDesc> get_memory_bandwidth_1thread_desc() {
     return std::unique_ptr<BenchDesc>(new MemoryBandwidth(false));
 }
 std::unique_ptr<BenchDesc> get_memory_bandwidth_full_thread_desc() {
     return std::unique_ptr<BenchDesc>(new MemoryBandwidth(true));
+}
+
+std::unique_ptr<BenchDesc> get_cache_bandwidth_desc() {
+    return std::unique_ptr<BenchDesc>(new CacheBandwidth());
+
 }
 
 } // namespace smbm
