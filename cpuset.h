@@ -1,42 +1,51 @@
 #pragma once
 
-#include <sched.h>
 #include <vector>
+
 #include "features.h"
+
+#ifdef HAVE_HWLOC
+#include <hwloc.h>
+#endif
+
 
 namespace smbm {
 
-#ifdef WINDOWS
-#elif defined HAVE_GNU_CPU_SET
+enum {
+    PROC_ORDER_OUTER_TO_INNER,
+    PROC_ORDER_INNER_TO_OUTER,
+
+    NPROC_ORDER,
+};
+
+#ifdef HAVE_HWLOC
+struct ProcessorIndex {
+    hwloc_obj_t pu_obj;
+    ProcessorIndex(hwloc_obj_t o)
+        :pu_obj(o)
+    {}
+};
+
 struct ProcessorTable {
-    int ncpu_configured;
-    cpu_set_t *set;
+    hwloc_topology_t topo;
 
-    std::vector<int> logical_idx_to_os_proc;
-
-    int logical_idx2os_idx(int logical_index) const {
-        return logical_idx_to_os_proc[logical_index];
+    std::vector<ProcessorIndex> table[NPROC_ORDER];
+    const ProcessorIndex logical_index_to_processor(int logical_index, int order) const {
+        return table[order][logical_index];
     }
 
     int get_active_cpu_count() const {
-        return logical_idx_to_os_proc.size();
-    }
-
-    size_t ss() const { 
-        return CPU_ALLOC_SIZE(this->ncpu_configured);
+        return (int)table[0].size();
     }
 
     ProcessorTable(const ProcessorTable &rhs)  = delete;
     void operator=(const ProcessorTable &) = delete;
 
     ProcessorTable();
-    ~ProcessorTable() {
-        CPU_FREE(set);
-    }
+    ~ProcessorTable();
 };
 #endif
 
-
-void bind_self_to_1proc(ProcessorTable const *tbl, int idx);
+void bind_self_to_1proc(ProcessorTable const *tbl, ProcessorIndex idx, bool membind);
 
 } // namespace smbm

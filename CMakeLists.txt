@@ -14,6 +14,8 @@ else()
   enable_testing()
 endif()
 
+find_package(PkgConfig)
+pkg_check_modules(HWLOC REQUIRED hwloc)
 find_package(Threads REQUIRED)
 
 add_library(libsys-microbenchmark
@@ -34,7 +36,9 @@ add_library(libsys-microbenchmark
   aarch64.cpp
 
   unknown-arch.cpp
-)
+  )
+
+target_include_directories(libsys-microbenchmark PRIVATE ${HWLOC_INCLUDE_DIRS})
 
 set_source_files_properties(x86-avx.cpp PROPERTIES COMPILE_FLAGS -mavx)
 set_source_files_properties(x86-avx512.cpp PROPERTIES COMPILE_FLAGS -mavx512f)
@@ -43,7 +47,10 @@ add_executable(sys-microbenchmark
   main.cpp
   )
 
-target_link_libraries(libsys-microbenchmark Threads::Threads)
+target_link_libraries(libsys-microbenchmark
+  PUBLIC Threads::Threads
+  PRIVATE ${HWLOC_LIBRARIES})
+
 
 target_compile_options(libsys-microbenchmark PUBLIC -Wall -std=gnu++17)
 target_link_libraries(sys-microbenchmark libsys-microbenchmark)

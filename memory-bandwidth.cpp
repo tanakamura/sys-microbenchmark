@@ -147,6 +147,13 @@ static inline void invoke_memory_func(ThreadInfo *ti, void *dst, void *src) {
 static void *mem_thread(void *p) {
     ThreadInfo *ti = (ThreadInfo *)p;
 
+    {
+        ProcessorIndex idx = ti->g->proc_table.logical_index_to_processor(ti->self_cpu, PROC_ORDER_OUTER_TO_INNER);
+        bind_self_to_1proc(&ti->g->proc_table,
+                           idx,
+                           true);
+    }
+
     void *src = aligned_calloc(64, ti->buffer_size);
     void *dst = aligned_calloc(64, ti->buffer_size);
 
@@ -275,11 +282,10 @@ static ThreadInfo *init_threads(const GlobalState *g, int start_proc, int num_th
         t[i].duration_sec = duration_sec;
         t[i].buffer_size = buffer_size;
         t[i].g = g;
-
         int run_on = start_proc + i;
-
-        t[i].t = spawn_thread_on_proc(mem_thread, &t[i], run_on, &g->proc_table);
         t[i].self_cpu = run_on;
+
+        t[i].t = spawn_thread_on_proc(mem_thread, &t[i]);
     }
 
     return t;
@@ -447,14 +453,25 @@ struct MemoryBandwidth : public BenchDesc {
         result->column_label = "MiB/sec";
         result->row_label = test_name_list;
 
+        int max_thread = g->proc_table.get_active_cpu_count();
+
+        {
+            // move to unused core
+            ProcessorIndex idx = g->proc_table.logical_index_to_processor(max_thread-1, PROC_ORDER_OUTER_TO_INNER);
+            bind_self_to_1proc(&g->proc_table,
+                               idx,
+                               true);
+        }
+
+
         int start_proc = 0;
         int nthread = 1;
         if (this->full_thread) {
-            if (g->proc_table.get_active_cpu_count() > 4) {
-                start_proc = 1; // skip first proc
-                nthread = g->proc_table.get_active_cpu_count() - 1;
+            if (max_thread >= 8) {
+                start_proc = 0; // skip first proc
+                nthread = max_thread / 2;
             } else {
-                nthread = g->proc_table.get_active_cpu_count();
+                nthread = max_thread;
             }
         }
 
@@ -493,6 +510,15 @@ struct MemoryBandwidth : public BenchDesc {
         }
 
         finish_threads(threads, nthread);
+
+        {
+            // reset
+            ProcessorIndex idx = g->proc_table.logical_index_to_processor(0, PROC_ORDER_OUTER_TO_INNER);
+            bind_self_to_1proc(&g->proc_table,
+                               idx,
+                               true);
+        }
+
 
         return result_t(result);
     }

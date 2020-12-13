@@ -15,15 +15,21 @@
 #define _GNU_SOURCE
 #endif
 
+#define HAVE_HWLOC
 #define HAVE_HW_PERF_COUNTER
 #define HAVE_CLOCK_GETTIME
 #define HAVE_GNU_CPU_SET
+#define HAVE_THREAD
+#define HAVE_PTHREAD
+
 #include <time.h>
 
 #elif defined _WIN64
 
 #define WINDOWS
 #include <windows.h>
+#define HAVE_HWLOC
+#define HAVE_THREAD
 
 #endif
 

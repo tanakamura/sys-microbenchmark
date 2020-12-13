@@ -50,7 +50,9 @@ GlobalState::GlobalState() {
         this->dustbox[i] = (uint64_t *)p;
     }
 
-    bind_self_to_1proc(&this->proc_table, 0);
+    bind_self_to_1proc(&this->proc_table,
+                       this->proc_table.logical_index_to_processor(0, PROC_ORDER_OUTER_TO_INNER),
+                       true);
 
 #ifdef HAVE_USERLAND_CPUCOUNTER
     {
@@ -92,7 +94,7 @@ GlobalState::GlobalState() {
 
             perror("perf_event_open");
             fprintf(stderr,
-                    "note : echo -1 > /proc/sys/kernel/perf_event_paranoid\n");
+                    "note : to enable perf counter, run 'echo -1 > /proc/sys/kernel/perf_event_paranoid' in shell\n");
         } else {
             this->hw_perf_counter_available = true;
         }
