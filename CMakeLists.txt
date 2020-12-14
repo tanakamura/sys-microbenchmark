@@ -54,7 +54,7 @@ add_executable(sys-microbenchmark
 
 target_link_libraries(libsys-microbenchmark
   PUBLIC Threads::Threads
-  PRIVATE ${HWLOC_LIB_DIR}/libhwloc_embedded.a)
+  ${HWLOC_LIB_DIR}/libhwloc_embedded.a)
 
 add_dependencies(libsys-microbenchmark hwloc)
 

@@ -2,9 +2,9 @@ set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
 
 set(triple x86_64-w64-mingw32)
-set(CMAKE_C_COMPILER x86_64-w64-mingw32-gcc)
+set(CMAKE_C_COMPILER x86_64-w64-mingw32-gcc-win32)
 set(CMAKE_C_COMPILER_TARGET ${triple})
-set(CMAKE_CXX_COMPILER x86_64-w64-mingw32-g++)
+set(CMAKE_CXX_COMPILER x86_64-w64-mingw32-g++-win32)
 set(CMAKE_CXX_COMPILER_TARGET ${triple})
 
 set(BUILD_HWLOC_CONF_ARGS CC=${CMAKE_C_COMPILER} --host=${triple})
