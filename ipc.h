@@ -5,6 +5,8 @@
 
 namespace smbm {
 
+#ifdef POSIX
+
 typedef int pipe_handle_t;
 
 struct Pipe {
@@ -49,6 +51,49 @@ void write_pipe(Pipe *p, char x) {
     }
             
 }
+#elif defined WINDOWS
 
+typedef HANDLE pipe_handle_t;
+
+struct Pipe {
+    pipe_handle_t read_pipe;
+    pipe_handle_t write_pipe;
+    Pipe() {
+        CreatePipe(&read_pipe, &write_pipe, NULL,0);
+    }
+    ~Pipe() {
+        CloseHandle(read_pipe);
+        CloseHandle(write_pipe);
+    }
+};
+
+char read_pipe(Pipe *p) {
+    char x;
+    DWORD rdsz;
+    BOOL r = ReadFile(p->read_pipe, &x, 1, &rdsz, NULL);
+    if (!r) {
+        abort();
+    }
+
+    rmb();
+    return x;
+}
+
+void write_pipe(Pipe *p, char x) {
+    wmb();
+
+    DWORD wrsz;
+    BOOL r = WriteFile(p->write_pipe, &x, 1, &wrsz, NULL);
+    if (!r) {
+        abort();
+    }
+            
+}
+
+
+
+#else
+#error "pipe"
+#endif
 
 };

@@ -285,7 +285,7 @@ static ThreadInfo *init_threads(const GlobalState *g, int start_proc, int num_th
         int run_on = start_proc + i;
         t[i].self_cpu = run_on;
 
-        t[i].t = spawn_thread_on_proc(mem_thread, &t[i]);
+        t[i].t = spawn_thread(mem_thread, &t[i]);
     }
 
     return t;
