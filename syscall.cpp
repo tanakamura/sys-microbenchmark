@@ -11,6 +11,11 @@
 #include <unistd.h>
 #endif
 
+#ifdef WINDOWS
+#include <process.h>
+#endif
+
+
 namespace smbm {
 
 struct no_arg {
@@ -204,6 +209,12 @@ static void *thread_func(void *) { return nullptr; }
 
 struct thread_create_join : public no_arg {
     void run(void *arg) {
+#ifdef WINDOWS
+        unsigned int threadID;
+        HANDLE ret = (HANDLE)_beginthreadex(NULL, 0, (unsigned __stdcall (*)(void*))thread_func, arg, 0, &threadID);
+        WaitForSingleObject(ret, INFINITE);
+        CloseHandle(ret);
+#else
         pthread_t t;
         int r = pthread_create(&t, NULL, thread_func, nullptr);
         if (r != 0) {
@@ -212,6 +223,7 @@ struct thread_create_join : public no_arg {
         }
 
         pthread_join(t, NULL);
+#endif
     }
 };
 

@@ -2,24 +2,7 @@ cmake_minimum_required(VERSION 3.1)
 
 project(sys-microbenchmark)
 
-set(MINGW_CROSS OFF CACHE BOOL "")
-
-if (MINGW_CROSS)
-  set(MINGW_TOOLCHAIN_PREFIX x86_64-w64-mingw32 CACHE STRING "")
-
-  set(CMAKE_SYSTEM_NAME Windows)
-  set(CMAKE_CXX_COMPILER ${MINGW_TOOLCHAIN_PREFIX}-g++ CACHE STRING "" FORCE)
-  set(CMAKE_C_COMPILER ${MINGW_TOOLCHAIN_PREFIX}-gcc CACHE STRING "" FORCE)
-
-  set(BUILD_HWLOC_CONF_ARGS CC=${CMAKE_C_COMPILER} --host=${MINGW_TOOLCHAIN_PREFIX})
-
-  set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
-  set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
-  set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
-else()
-  enable_testing()
-endif()
-
+enable_testing()
 
 #find_package(PkgConfig)
 #pkg_check_modules(HWLOC REQUIRED hwloc)
