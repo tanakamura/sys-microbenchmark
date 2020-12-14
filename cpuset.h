@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <memory>
 
 #include "features.h"
 
@@ -46,6 +47,6 @@ struct ProcessorTable {
 };
 #endif
 
-void bind_self_to_1proc(ProcessorTable const *tbl, ProcessorIndex idx, bool membind);
+void bind_self_to_1proc(std::unique_ptr<ProcessorTable> const &tbl, ProcessorIndex idx, bool membind);
 
 } // namespace smbm

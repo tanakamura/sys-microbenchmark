@@ -15,6 +15,15 @@ namespace smbm {
     static inline void wmb() {
         _mm_sfence();
     }
+#elif defined __aarch64__
+    static inline void rmb() {
+        __asm__ __volatile__ ("dmb ld" ::: "memory");
+    }
+    static inline void wmb() {
+        __asm__ __volatile__ ("dmb st" ::: "memory");
+    }
+
+
 #endif
 
 }

@@ -1,13 +1,17 @@
 #include "sys-microbenchmark.h"
 #include "oneshot_timer.h"
 #include <fcntl.h>
-#include <linux/hw_breakpoint.h>
+
+#ifdef __linux__
 #include <linux/perf_event.h>
+#include <sys/syscall.h>
+#endif
+
 #include <math.h>
 #include <string.h>
-#include <sys/syscall.h>
 #include <unistd.h>
 
+#include "cpuset.h"
 #include "memalloc.h"
 
 namespace smbm {
@@ -36,22 +40,24 @@ static inline void ostimer_delay_loop(GlobalState *g, uint64_t msec) {
     }
 }
 
-GlobalState::GlobalState() {
-    void *p = aligned_alloc(64, 64);
+GlobalState::GlobalState()
+    :proc_table(new ProcessorTable())
+{
+    void *p = aligned_calloc(64, 64);
 
     this->zero_memory = (uint64_t *)p;
     *this->zero_memory = 0;
 
-    int ncpu = proc_table.get_active_cpu_count();
+    int ncpu = proc_table->get_active_cpu_count();
     this->dustbox = new uint64_t *[ncpu];
 
     for (int i = 0; i < ncpu; i++) {
-        p = aligned_alloc(64, 64);
+        p = aligned_calloc(64, 64);
         this->dustbox[i] = (uint64_t *)p;
     }
 
-    bind_self_to_1proc(&this->proc_table,
-                       this->proc_table.logical_index_to_processor(0, PROC_ORDER_OUTER_TO_INNER),
+    bind_self_to_1proc(this->proc_table,
+                       this->proc_table->logical_index_to_processor(0, PROC_ORDER_OUTER_TO_INNER),
                        true);
 
 #ifdef HAVE_USERLAND_CPUCOUNTER
@@ -148,7 +154,7 @@ GlobalState::inc_sec_userland_timer(userland_timer_value const *t0,
 GlobalState::~GlobalState() {
     aligned_free(this->zero_memory);
 
-    int ncpu = proc_table.get_active_cpu_count();
+    int ncpu = proc_table->get_active_cpu_count();
 
     for (int i = 0; i < ncpu; i++) {
         aligned_free(this->dustbox[i]);

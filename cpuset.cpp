@@ -136,7 +136,7 @@ ProcessorTable::~ProcessorTable() {
 }
 
 void
-bind_self_to_1proc(ProcessorTable const *tbl, ProcessorIndex idx, bool membind)
+bind_self_to_1proc(std::unique_ptr<ProcessorTable> const &tbl, ProcessorIndex idx, bool membind)
 {
     hwloc_set_cpubind(tbl->topo, idx.pu_obj->cpuset, HWLOC_CPUBIND_THREAD);
     if (membind) {

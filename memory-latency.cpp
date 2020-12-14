@@ -26,7 +26,7 @@ struct MemoryLatency : public BenchDesc {
             range_label.push_back(x * sizeof(int));
         }
 
-        table_t *result = new table_t("range[KiByte]", range_cands.size());
+        table_t *result = new table_t("range[Byte]", range_cands.size());
         result->column_label = "nsec/access";
         result->row_label = range_label;
 

@@ -11,7 +11,6 @@
 #include <x86intrin.h>
 #endif
 
-#include "cpuset.h"
 #include "picojson.h"
 
 namespace smbm {
@@ -66,6 +65,9 @@ FOR_EACH_BENCHMARK_LIST(DEFINE_ENTRY)
 #define REP8(A) A A A A A A A A
 #define REP16(A) REP8(A) REP8(A)
 
+
+#ifdef POSIX
+
 inline uint64_t delta_timespec(struct timespec const *l,
                                struct timespec const *r) {
     uint64_t delta_sec = (l->tv_sec - r->tv_sec);
@@ -109,6 +111,33 @@ struct ostimer_value {
         return "clock_gettime";
     }
 };
+#elif defined WINDOWS
+
+struct ostimer_value {
+    LARGE_INTEGER v;
+
+    bool operator>=(struct ostimer_value const &r) const {
+        return this->v.QuadPart >= r.v.QuadPart;
+    }
+    uint64_t operator-(struct ostimer_value const &r) const {
+        return this->v.QuadPart - r.v.QuadPart;
+    }
+
+    static ostimer_value get() {
+        ostimer_value ret;
+        QueryPerformanceCounter(&ret.v);
+        return ret;
+    }
+
+    static const char *name() {
+        return "QueryPerformanceCounter";
+    }
+
+};
+
+#else
+#error "ostimer"
+#endif
 
 struct userland_timer_value {
 #ifdef HAVE_USERLAND_CPUCOUNTER
@@ -167,9 +196,10 @@ struct userland_timer_value {
 };
 
 typedef uint64_t perf_counter_value_t;
+struct ProcessorTable;
 
 struct GlobalState {
-    ProcessorTable proc_table;
+    std::unique_ptr<ProcessorTable> proc_table;
 
     std::vector<std::shared_ptr<BenchDesc>> bench_list;
     std::vector<std::shared_ptr<BenchDesc>> get_benchmark_list() {
@@ -187,7 +217,7 @@ struct GlobalState {
         return hw_perf_counter_available;
     }
 #else
-    bool is_hw_perf_counter_available() {
+    bool is_hw_perf_counter_available() const {
         return false;
     }
 #endif

@@ -9,7 +9,10 @@
 
 #include <fstream>
 #include <getopt.h>
+
+#ifdef POSIX
 #include <sys/utsname.h>
+#endif
 
 static void
 run(smbm::GlobalState *g,
@@ -32,14 +35,8 @@ int main(int argc, char **argv) {
     auto bench_list = g.get_benchmark_list();
 
 #ifdef X86
-#ifdef _WIN32
-#define x_cpuid(p,eax) __cpuid(p, eax)
-    typedef int cpuid_t;
-#else
 #define x_cpuid(p,eax) __get_cpuid(eax, &(p)[0], &(p)[1], &(p)[2], &(p)[3]);
     typedef unsigned int cpuid_t;
-#endif
-
     cpuid_t data[4*3+1];
 #endif
 
@@ -119,12 +116,12 @@ int main(int argc, char **argv) {
     {
         char buffer[256];
         time_t now = time(NULL);
-        static struct tm t;
-        localtime_r(&now, &t);
-        strftime(buffer, 1024, "%Y-%m-%dT%H:%M:%d%z", &t);
+        static struct tm *t = localtime(&now);
+        strftime(buffer, 1024, "%Y-%m-%dT%H:%M:%d%z", t);
         this_obj["run_time"] = picojson::value(buffer);
     }
 
+#ifdef __linux__
     {
         std::ifstream cmdline;
         cmdline.open("/proc/cmdline");
@@ -133,13 +130,20 @@ int main(int argc, char **argv) {
         std::getline(cmdline, buffer);
         this_obj["kernel_cmdline"] = picojson::value(buffer);
     }
+#endif
 
+#ifdef POSIX
     {
         struct utsname n;
         uname(&n);
         std::string uname = std::string(n.sysname) + n.release + n.version + n.machine;
         this_obj["os"] = picojson::value(uname);
     }
+
+#elif defined WINDOWS
+    this_obj["os"] = picojson::value("Windows");
+
+#endif
 
     std::cout << std::fixed << std::setprecision(PRINT_DOUBLE_PRECISION);
 

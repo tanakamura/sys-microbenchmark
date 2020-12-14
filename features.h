@@ -19,8 +19,8 @@
 #define HAVE_HW_PERF_COUNTER
 #define HAVE_CLOCK_GETTIME
 #define HAVE_GNU_CPU_SET
-#define HAVE_THREAD
-#define HAVE_PTHREAD
+
+#define POSIX
 
 #include <time.h>
 
@@ -40,6 +40,11 @@
 #ifndef HAVE_USERLAND_CPUCOUNTER
 #define USE_OS_TIMECOUNTER
 #endif
+
+#ifdef POSIX
+#define HAVE_THREAD
+#endif
+
 
 namespace smbm {
 typedef uint64_t vec128i __attribute__((vector_size(16)));

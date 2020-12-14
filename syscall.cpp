@@ -1,12 +1,15 @@
 #include "oneshot_timer.h"
 #include "sys-microbenchmark.h"
 #include "table.h"
+
+#ifdef POSIX
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#endif
 
 namespace smbm {
 

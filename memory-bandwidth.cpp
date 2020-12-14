@@ -148,8 +148,8 @@ static void *mem_thread(void *p) {
     ThreadInfo *ti = (ThreadInfo *)p;
 
     {
-        ProcessorIndex idx = ti->g->proc_table.logical_index_to_processor(ti->self_cpu, PROC_ORDER_OUTER_TO_INNER);
-        bind_self_to_1proc(&ti->g->proc_table,
+        ProcessorIndex idx = ti->g->proc_table->logical_index_to_processor(ti->self_cpu, PROC_ORDER_OUTER_TO_INNER);
+        bind_self_to_1proc(ti->g->proc_table,
                            idx,
                            true);
     }
@@ -453,12 +453,12 @@ struct MemoryBandwidth : public BenchDesc {
         result->column_label = "MiB/sec";
         result->row_label = test_name_list;
 
-        int max_thread = g->proc_table.get_active_cpu_count();
+        int max_thread = g->proc_table->get_active_cpu_count();
 
         {
             // move to unused core
-            ProcessorIndex idx = g->proc_table.logical_index_to_processor(max_thread-1, PROC_ORDER_OUTER_TO_INNER);
-            bind_self_to_1proc(&g->proc_table,
+            ProcessorIndex idx = g->proc_table->logical_index_to_processor(max_thread-1, PROC_ORDER_OUTER_TO_INNER);
+            bind_self_to_1proc(g->proc_table,
                                idx,
                                true);
         }
@@ -513,8 +513,8 @@ struct MemoryBandwidth : public BenchDesc {
 
         {
             // reset
-            ProcessorIndex idx = g->proc_table.logical_index_to_processor(0, PROC_ORDER_OUTER_TO_INNER);
-            bind_self_to_1proc(&g->proc_table,
+            ProcessorIndex idx = g->proc_table->logical_index_to_processor(0, PROC_ORDER_OUTER_TO_INNER);
+            bind_self_to_1proc(g->proc_table,
                                idx,
                                true);
         }

@@ -5,6 +5,7 @@
 namespace smbm {
 
 template <bool use_perf_counter> auto get_count(GlobalState const *g);
+template <bool use_perf_counter> auto convert_deltaval(GlobalState const *g, uint64_t v);
 
 #ifdef HAVE_HW_PERF_COUNTER
 template<>
@@ -13,12 +14,23 @@ get_count<true>(GlobalState const *g) {
     return g->get_hw_cpucycle();
 }
 
+template <>
+auto
+convert_deltaval<true>(GlobalState const *g, uint64_t v) {
+    return v;
+}
+
 #endif
 
 template<>
 auto
 get_count<false>(GlobalState const *g) {
     return userland_timer_value::get();
+}
+template <>
+auto
+convert_deltaval<false>(GlobalState const *g, uint64_t d) {
+    return g->userland_timer_delta_to_sec(d) * 1e9; // to nsec
 }
 
 template<typename int_t, bool is_32, bool use_perf_counter>
@@ -64,7 +76,10 @@ std::unique_ptr<BenchResult> run(GlobalState const *g) {
             auto t1 = get_count<use_perf_counter>(g);
 
             g->dummy_write(0, divisor);
-            double result = (t1-t0) / (nloop * 16.0);
+
+            auto deltaval = convert_deltaval<use_perf_counter>(g, t1-t0);
+
+            double result = deltaval / (nloop * 16.0);
 
             (*result_table)[divisor_bit][divider_bit - 1] = result;
             max = std::max(max, result);
@@ -118,11 +133,21 @@ std::unique_ptr<BenchDesc> get_idiv32_desc() {
 std::unique_ptr<BenchDesc> get_idiv64_desc() {
     return std::unique_ptr<BenchDesc> (new IDIV<false>(false));
 }
+
+#ifdef HAVE_HW_PERF_COUNTER
 std::unique_ptr<BenchDesc> get_idiv32_cycle_desc() {
     return std::unique_ptr<BenchDesc> (new IDIV<true>(true));
 }
 std::unique_ptr<BenchDesc> get_idiv64_cycle_desc() {
     return std::unique_ptr<BenchDesc> (new IDIV<true>(false));
 }
+#else
+std::unique_ptr<BenchDesc> get_idiv32_cycle_desc() {
+    return std::unique_ptr<BenchDesc>();
+}
+std::unique_ptr<BenchDesc> get_idiv64_cycle_desc() {
+    return std::unique_ptr<BenchDesc>();
+}
+#endif
 
 } // namespace smbm
