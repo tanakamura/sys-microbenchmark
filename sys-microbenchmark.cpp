@@ -25,8 +25,8 @@ static int perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu,
 }
 #endif
 
-static inline void ostimer_delay_loop(GlobalState *g, uint64_t msec) {
-    uint64_t target_delta = (msec * 1000000) * g->ostimer_delta_to_nsec_scale();
+static inline void ostimer_delay_loop(GlobalState *g, double sec) {
+    uint64_t target_delta = g->sec_to_ostimer_delta(sec);
 
     auto t0 = ostimer_value::get();
     while (1) {
@@ -40,9 +40,7 @@ static inline void ostimer_delay_loop(GlobalState *g, uint64_t msec) {
     }
 }
 
-GlobalState::GlobalState()
-    :proc_table(new ProcessorTable())
-{
+GlobalState::GlobalState() : proc_table(new ProcessorTable()) {
     void *p = aligned_calloc(64, 64);
 
     this->zero_memory = (uint64_t *)p;
@@ -57,19 +55,20 @@ GlobalState::GlobalState()
     }
 
     bind_self_to_1proc(this->proc_table,
-                       this->proc_table->logical_index_to_processor(0, PROC_ORDER_OUTER_TO_INNER),
+                       this->proc_table->logical_index_to_processor(
+                           0, PROC_ORDER_OUTER_TO_INNER),
                        true);
 
 #ifdef HAVE_USERLAND_CPUCOUNTER
     {
-        uint64_t measure_delay = 50;
-        uint64_t delay_to_sec = 1000 / measure_delay;
+        double measure_delay_sec = 0.05;
+        double delay_to_sec = 1 / measure_delay_sec;
 
         uint64_t min = -(1ULL);
 
         for (int i = 0; i < 5; i++) {
             auto t0 = userland_timer_value::get();
-            ostimer_delay_loop(this, measure_delay);
+            ostimer_delay_loop(this, measure_delay_sec);
             auto t1 = userland_timer_value::get();
 
             uint64_t d = t1 - t0;
@@ -99,8 +98,8 @@ GlobalState::GlobalState()
             this->hw_perf_counter_available = false;
 
             perror("perf_event_open");
-            fprintf(stderr,
-                    "note : to enable perf counter, run 'echo -1 > /proc/sys/kernel/perf_event_paranoid' in shell\n");
+            fprintf(stderr, "note : to enable perf counter, run 'echo -1 > "
+                            "/proc/sys/kernel/perf_event_paranoid' in shell\n");
         } else {
             this->hw_perf_counter_available = true;
         }
@@ -108,12 +107,22 @@ GlobalState::GlobalState()
 
 #endif
 
+#ifdef WINDOWS
+    {
+        LARGE_INTEGER freq;
+        QueryPerformanceFrequency(&freq);
+        this->ostimer_freq = freq.QuadPart;
+    }
+#endif
 
-#define F(B) { auto x = std::shared_ptr<BenchDesc>(get_##B##_desc()); if (x->available(this)) {this->bench_list.push_back(x);}};
+#define F(B)                                                                   \
+    {                                                                          \
+        auto x = std::shared_ptr<BenchDesc>(get_##B##_desc());                 \
+        if (x->available(this)) {                                              \
+            this->bench_list.push_back(x);                                     \
+        }                                                                      \
+    };
     FOR_EACH_BENCHMARK_LIST(F);
-
-
-
 }
 
 double GlobalState::userland_timer_delta_to_sec(uint64_t delta) const {

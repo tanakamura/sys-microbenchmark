@@ -31,6 +31,8 @@
 #define HAVE_HWLOC
 #define HAVE_THREAD
 
+#define clock_gettime w32_clock_gettime_is_not_implemented
+
 #endif
 
 #if (defined X86) || (defined __aarch64__)

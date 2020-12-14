@@ -245,7 +245,18 @@ struct GlobalState {
     perf_counter_value_t get_hw_cache_miss() const;
 #endif
 
-    uint64_t ostimer_delta_to_nsec_scale() { return 1; }
+#ifdef POSIX
+    /* timespec hold ns value */
+    static constexpr double ostimer_freq = 1e9;
+#endif
+
+#ifdef WINDOWS
+    double ostimer_freq;
+#endif
+
+    double ostimer_delta_to_sec(uint64_t delta) { return delta / ostimer_freq; }
+    uint64_t sec_to_ostimer_delta(double sec) { return (uint64_t)((sec * ostimer_freq) + 0.5); }
+
 };
 
 void warmup_thread(GlobalState const *g);

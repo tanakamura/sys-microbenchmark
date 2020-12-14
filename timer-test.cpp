@@ -2,14 +2,6 @@
 #include <unistd.h>
 #include "oneshot_timer.h"
 
-double getsec() {
-    struct timespec ts;
-
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-
-    return ts.tv_sec + ts.tv_nsec / 1e9;
-}
-
 int
 main()
 {
@@ -30,19 +22,22 @@ main()
     }
 
     {
-        oneshot_timer ot(1024);
-        double t0 = getsec();
+        oneshot_timer ot(1);
+        auto t0 = ostimer_value::get();
+        double delay = 0.5;
 
-        ot.start(&g, 0.1);
+        ot.start(&g, delay);
         while(!ot.test_end()) {
             
         }
-        double t1 = getsec();
+        auto t1 = ostimer_value::get();
 
-        double dexpect = fabs((t1-t0) - 0.1);
+        double delta_sec = g.ostimer_delta_to_sec(t1-t0);
 
-        if (dexpect > 1e-3) {
-            printf("too large error @ oneshot timer = %f\n", dexpect);
+        double delta_from_expect = fabs(delta_sec - delay);
+
+        if (delta_from_expect > 1e-3) {
+            printf("too large error @ oneshot timer = %e\n", delta_from_expect);
             exit(1);
         }
     }

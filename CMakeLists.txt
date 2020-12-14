@@ -75,7 +75,7 @@ target_link_libraries(libsys-microbenchmark
 
 add_dependencies(libsys-microbenchmark hwloc)
 
-target_compile_options(libsys-microbenchmark PUBLIC -Wall -std=gnu++17)
+target_compile_options(libsys-microbenchmark PUBLIC -Wall -std=c++17)
 target_link_libraries(sys-microbenchmark libsys-microbenchmark)
 
 

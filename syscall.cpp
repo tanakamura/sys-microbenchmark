@@ -222,12 +222,14 @@ struct gettimeofday1 : public no_arg {
     }
 };
 
+#ifdef POSIX
 struct clock_gettime1 : public no_arg {
     void run(void *arg) {
         struct timespec tv;
         clock_gettime(CLOCK_MONOTONIC, &tv);
     }
 };
+#endif
 
 template <typename F> double run_test(const GlobalState *g, F *f) {
     auto a = f->alloc_arg();
