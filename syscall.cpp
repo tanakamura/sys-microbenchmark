@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #endif
 
 #ifdef WINDOWS
@@ -38,9 +39,9 @@ struct close_invalid : public no_arg {
 struct open_close : public no_arg {
     void run(void *arg) {
 #ifdef WINDOWS
-        HANDLE h = CreateFileW(L".", GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        HANDLE h = CreateFileW(L"C:\\Windows\\system.ini", GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
         if (h == INVALID_HANDLE_VALUE) {
-            perror("open");
+            puts("CreateFile(system.ini)");
             exit(1);
         }
         CloseHandle(h);
@@ -241,6 +242,106 @@ struct clock_gettime1 : public no_arg {
         clock_gettime(CLOCK_MONOTONIC, &tv);
     }
 };
+struct stat1 : public no_arg {
+    void run(void *arg) {
+        struct stat st;
+        stat(".", &st);
+    }
+};
+struct fstat1 : public no_arg {
+    int alloc_arg() {
+        int ret = open(".", O_RDONLY);
+        if (ret == -1) {
+            perror("open");
+        }
+        return ret;
+    }
+    void free_arg(int fd) {
+        close(fd);
+    }
+
+    void run(int fd) {
+        struct stat st;
+        fstat(fd, &st);
+    }
+};
+
+#endif
+
+#ifdef WINDOWS
+struct QueryPerformanceCounter1
+    :public no_arg
+{
+    void run(void *p) {
+        LARGE_INTEGER v;
+        QueryPerformanceCounter(&v);
+    }
+};
+
+struct create_destroy_window
+{
+    HINSTANCE alloc_arg() {
+        return (HINSTANCE)GetModuleHandle(NULL);
+    }
+
+    void free_arg(HINSTANCE h) {
+    }
+
+    void run(HINSTANCE hInstance) {
+	HWND w = CreateWindowW(
+            L"BUTTON" , L"test",
+            WS_OVERLAPPED | BS_DEFPUSHBUTTON ,
+            0, 0, 10, 10,
+            NULL, NULL , hInstance , NULL
+	);
+        if (w == NULL) {
+            int er = (int)GetLastError();
+            printf("CreateWindow 0x%08x %d\n", er, er);
+            exit(1);
+        }
+        DestroyWindow(w);
+    }
+};
+
+struct PeekMessage1
+    :public no_arg
+{
+    void run(void *p) {
+        MSG m;
+        PeekMessage(&m, NULL, 0, 0, PM_NOREMOVE);
+    }
+};
+
+struct GetFileAttributes1
+    :public no_arg
+{
+    void run(void *p) {
+        GetFileAttributesW(L".");
+    }
+};
+struct GetFileSize1
+    :public no_arg
+{
+    HANDLE alloc_arg() {
+        HANDLE h = CreateFileW(L"nul", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (h == INVALID_HANDLE_VALUE) {
+            puts("CreateFileW(nul)");
+            exit(1);
+        }
+
+        return h;
+    }
+
+    void free_arg(HANDLE h) {
+        CloseHandle(h);
+    }
+
+    void run(HANDLE h) {
+        DWORD len;
+        GetFileSize(h, &len);
+    }
+};
+
 #endif
 
 template <typename F> double run_test(const GlobalState *g, F *f) {
@@ -279,12 +380,28 @@ template <typename F> double run_test(const GlobalState *g, F *f) {
     F(select_0)                                                         \
     F(fork_wait)                                                               \
     F(gettimeofday1)                                                           \
-    F(clock_gettime1)
+    F(clock_gettime1)                                                   \
+    F(stat1)                                                            \
+    F(fstat1)                                                            \
+
+#define FOR_EACH_TEST_WINDOWS(F)                \
+    F(QueryPerformanceCounter1)                  \
+    F(create_destroy_window)                    \
+    F(PeekMessage1)                    \
+    F(GetFileAttributes1)              \
+    F(GetFileSize1)
 
 #ifdef POSIX
 #define FOR_EACH_TEST(F)                        \
     FOR_EACH_TEST_GENERIC(F)                    \
     FOR_EACH_TEST_POSIX(F)
+
+#elif defined WINDOWS
+
+#define FOR_EACH_TEST(F)                        \
+    FOR_EACH_TEST_GENERIC(F)                    \
+    FOR_EACH_TEST_WINDOWS(F)
+
 
 #else
 #define FOR_EACH_TEST(F)                        \

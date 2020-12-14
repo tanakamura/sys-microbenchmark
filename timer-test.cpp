@@ -16,8 +16,8 @@ main()
     double dt = g.userland_timer_delta_to_sec(t1-t0);
 
     double dexpect = fabs(dt - 1.0);
-    if (dexpect > 1e-3) {
-        printf("too large error @ get_cputime delta=%f, %f-%f\n", dexpect, dt, 1e9);
+    if (dexpect > 2e-3) {
+        printf("too large error @ get_cputime delta=%f, %f-%f\n", dexpect, dt, 1.0);
         exit(1);
     }
 

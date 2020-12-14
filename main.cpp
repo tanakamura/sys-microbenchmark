@@ -130,6 +130,8 @@ int main(int argc, char **argv) {
         std::getline(cmdline, buffer);
         this_obj["kernel_cmdline"] = picojson::value(buffer);
     }
+#else
+    this_obj["kernel_cmdline"] = picojson::value("");
 #endif
 
 #ifdef POSIX

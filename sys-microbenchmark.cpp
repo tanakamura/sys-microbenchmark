@@ -59,6 +59,15 @@ GlobalState::GlobalState() : proc_table(new ProcessorTable()) {
                            0, PROC_ORDER_OUTER_TO_INNER),
                        true);
 
+
+#ifdef WINDOWS
+    {
+        LARGE_INTEGER freq;
+        QueryPerformanceFrequency(&freq);
+        this->ostimer_freq = freq.QuadPart;
+    }
+#endif
+
 #ifdef HAVE_USERLAND_CPUCOUNTER
     {
         double measure_delay_sec = 0.05;
@@ -107,19 +116,11 @@ GlobalState::GlobalState() : proc_table(new ProcessorTable()) {
 
 #endif
 
-#ifdef WINDOWS
-    {
-        LARGE_INTEGER freq;
-        QueryPerformanceFrequency(&freq);
-        this->ostimer_freq = freq.QuadPart;
-    }
-#endif
-
 #define F(B)                                                                   \
     {                                                                          \
         auto x = std::shared_ptr<BenchDesc>(get_##B##_desc());                 \
-        if (x->available(this)) {                                              \
-            this->bench_list.push_back(x);                                     \
+        if (x && x->available(this)) {                                  \
+            this->bench_list.push_back(x);                              \
         }                                                                      \
     };
     FOR_EACH_BENCHMARK_LIST(F);
