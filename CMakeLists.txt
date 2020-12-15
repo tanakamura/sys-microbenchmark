@@ -13,6 +13,9 @@ find_package(OpenMP REQUIRED)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 
+set(HWLOC_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/hwloc-build/include ${CMAKE_CURRENT_BINARY_DIR}/hwloc-2.4.0/include)
+set(HWLOC_LIB_DIR ${CMAKE_CURRENT_BINARY_DIR}/hwloc-build/hwloc/.libs)
+
 add_library(libsys-microbenchmark
 
   sys-microbenchmark.cpp
@@ -32,11 +35,8 @@ add_library(libsys-microbenchmark
   aarch64.cpp
 
   unknown-arch.cpp
+
   )
-
-set(HWLOC_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/hwloc-build/include ${CMAKE_CURRENT_BINARY_DIR}/hwloc-2.4.0/include)
-
-set(HWLOC_LIB_DIR ${CMAKE_CURRENT_BINARY_DIR}/hwloc-build/hwloc/.libs)
 
 add_custom_command(OUTPUT ${HWLOC_LIB_DIR}/libhwloc_embedded.a
   COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/build-hwloc.sh ${BUILD_HWLOC_CONF_ARGS})
@@ -58,8 +58,9 @@ add_executable(sys-microbenchmark
   )
 
 target_link_libraries(libsys-microbenchmark
-  PUBLIC Threads::Threads OpenMP::OpenMP_C
-  ${HWLOC_LIB_DIR}/libhwloc_embedded.a)
+  Threads::Threads OpenMP::OpenMP_C
+  ${HWLOC_LIB_DIR}/libhwloc_embedded.a
+  )
 
 add_dependencies(libsys-microbenchmark hwloc)
 
