@@ -8,6 +8,10 @@ enable_testing()
 #pkg_check_modules(HWLOC REQUIRED hwloc)
 
 find_package(Threads REQUIRED)
+find_package(OpenMP REQUIRED)
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 
 add_library(libsys-microbenchmark
 
@@ -19,6 +23,7 @@ add_library(libsys-microbenchmark
   syscall.cpp
   memory-latency.cpp
   memory-bandwidth.cpp
+  omp.cpp
 
   x86-avx.cpp
   x86-avx512.cpp
@@ -53,7 +58,7 @@ add_executable(sys-microbenchmark
   )
 
 target_link_libraries(libsys-microbenchmark
-  PUBLIC Threads::Threads
+  PUBLIC Threads::Threads OpenMP::OpenMP_C
   ${HWLOC_LIB_DIR}/libhwloc_embedded.a)
 
 add_dependencies(libsys-microbenchmark hwloc)

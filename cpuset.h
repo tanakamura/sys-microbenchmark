@@ -29,6 +29,7 @@ struct ProcessorIndex {
 
 struct ProcessorTable {
     hwloc_topology_t topo;
+    hwloc_cpuset_t startup_set;
 
     std::vector<ProcessorIndex> table[NPROC_ORDER];
     const ProcessorIndex logical_index_to_processor(int logical_index, int order) const {
@@ -48,5 +49,8 @@ struct ProcessorTable {
 #endif
 
 void bind_self_to_1proc(std::unique_ptr<ProcessorTable> const &tbl, ProcessorIndex idx, bool membind);
+void bind_self_to_first(std::unique_ptr<ProcessorTable> const &tbl, bool membind);
+
+void bind_self_to_all(std::unique_ptr<ProcessorTable> const &tbl);
 
 } // namespace smbm

@@ -57,6 +57,7 @@ struct BenchDesc {
     F(cache_bandwidth)                                                  \
     F(memory_random_access_seq)                                         \
     F(memory_random_access_para)                                         \
+    F(openmp)                                                           \
 
 #define DEFINE_ENTRY(B) std::unique_ptr<BenchDesc> get_##B##_desc();
 
