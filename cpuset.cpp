@@ -110,13 +110,22 @@ ProcessorTable::ProcessorTable() {
         exit(1);
     }
 
+    this->startup_set = hwloc_bitmap_alloc();
+    r = hwloc_get_cpubind(this->topo, this->startup_set, HWLOC_CPUBIND_THREAD);
+    if (r < 0) {
+        perror("hwloc_get_cpubind");
+        exit(1);
+    }
+
     hwloc_obj_t root = hwloc_get_root_obj(this->topo);
     std::unique_ptr<count_node> croot;
     build_count_tree(root, croot);
 
     croot->map_before([this](count_node &n) {
         if (n.children.size() == 0) {
-            this->table[PROC_ORDER_INNER_TO_OUTER].emplace_back(n.obj);
+            if (hwloc_bitmap_intersects(this->startup_set,n.obj->cpuset)) {
+                this->table[PROC_ORDER_INNER_TO_OUTER].emplace_back(n.obj);
+            }
         }
 
         n.count = 0;
@@ -125,16 +134,13 @@ ProcessorTable::ProcessorTable() {
 
     while (!croot->finished) {
         hwloc_obj_t leaf = croot->get_current_leaf();
-        this->table[PROC_ORDER_OUTER_TO_INNER].emplace_back(leaf);
+        if (hwloc_bitmap_intersects(this->startup_set,leaf->cpuset)) {
+            this->table[PROC_ORDER_OUTER_TO_INNER].emplace_back(leaf);
+        }
+        
         croot->inc();
     }
 
-    this->startup_set = hwloc_bitmap_alloc();
-    r = hwloc_get_cpubind(this->topo, this->startup_set, HWLOC_CPUBIND_THREAD);
-    if (r < 0) {
-        perror("hwloc_get_cpubind");
-        exit(1);
-    }
 }
 
 ProcessorTable::~ProcessorTable() {
