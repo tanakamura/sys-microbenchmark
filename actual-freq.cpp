@@ -159,7 +159,7 @@ static constexpr bool T() { return true; }
 
 #else
 #define FOR_EACH_INST(F)                       \
-    FOR_EACH_INST_GENERIC(F,T)
+    FOR_EACH_INST_GENERIC(F)
 #endif
 
 
