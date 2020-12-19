@@ -31,7 +31,7 @@ struct GlobalState;
 
 struct BenchResult {
     virtual ~BenchResult() {}
-    virtual picojson::value dump_json() = 0;
+    virtual picojson::value dump_json() const = 0;
     virtual void dump_human_readable(std::ostream &, int double_precision) = 0;
 };
 
@@ -58,7 +58,8 @@ struct BenchDesc {
     F(memory_random_access_seq)                                         \
     F(memory_random_access_para)                                         \
     F(openmp)                                                           \
-    F(actual_freq)
+    F(actual_freq)                                                      \
+    F(inter_processor_communication)           \
 
 #define DEFINE_ENTRY(B) std::unique_ptr<BenchDesc> get_##B##_desc();
 

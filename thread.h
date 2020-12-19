@@ -1,6 +1,8 @@
 #pragma once 
 
 #include "cpuset.h"
+#include "barrier.h"
+#include <atomic>
 
 #ifdef WINDOWS
 #include <process.h>
@@ -38,5 +40,19 @@ inline void wait_thread(thread_handle_t t) {
 #else
 #error "spawn_thread_on_proc"
 #endif
+
+
+inline void wait_barrier(std::atomic<int> *p, int wait_count) {
+    wmb();
+    (*p) += 1;
+
+    while (1) {
+        if ((*p) == wait_count) {
+            break;
+        }
+    }
+    rmb();
+}
+
 
 }

@@ -26,4 +26,6 @@ namespace smbm {
 
 #endif
 
+#define compiler_mb() __asm__ __volatile__ ("":::"memory");
+
 }

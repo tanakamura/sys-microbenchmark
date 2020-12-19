@@ -18,18 +18,6 @@ namespace {
 
 using namespace af;
 
-inline void wait_barrier(std::atomic<int> *p, int wait_count) {
-    wmb();
-    (*p) += 1;
-
-    while (1) {
-        if ((*p) == wait_count) {
-            break;
-        }
-    }
-    rmb();
-}
-
 struct ThreadInfo {
     thread_handle_t thread;
 
@@ -49,7 +37,7 @@ struct ThreadInfo {
 static void *thread_func(void *ap) {
     ThreadInfo *ti = (ThreadInfo*)ap;
 
-    ProcessorIndex idx = ti->g->proc_table->logical_index_to_processor(ti->tid, PROC_ORDER_INNER_TO_OUTER);
+    ProcessorIndex idx = ti->g->proc_table->logical_index_to_processor(ti->tid, PROC_ORDER_OUTER_TO_INNER);
     bind_self_to_1proc(ti->g->proc_table, idx, true);
 
     perf_counter_value_t pt0=0, pt1;

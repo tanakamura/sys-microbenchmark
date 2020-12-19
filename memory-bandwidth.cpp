@@ -82,18 +82,6 @@ static void gccvec128_store_test(void *dst, size_t sz) {
     }
 }
 
-inline void wait_barrier(std::atomic<int> *p, int wait_count) {
-    wmb();
-    (*p) += 1;
-
-    while (1) {
-        if ((*p) == wait_count) {
-            break;
-        }
-    }
-    rmb();
-}
-
 enum class memop { COPY, STORE, LOAD, QUIT };
 
 union fn_union {

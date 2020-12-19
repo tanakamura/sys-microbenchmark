@@ -4,6 +4,7 @@
 #include <math.h>
 #include <iomanip>
 #include <sstream>
+#include "json.h"
 
 namespace smbm {
 
@@ -16,48 +17,6 @@ void dump2d(std::ostream &out, Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *t, bool 
 
 template <typename T, typename LT>
 void dump1d(std::ostream &out, Table1D<T, LT> *t, int double_precision);
-
-namespace detail {
-inline picojson::value to_jv(int x) { return picojson::value((double)x); }
-inline picojson::value to_jv(unsigned int x) {
-    return picojson::value((double)x);
-}
-
-inline picojson::value to_jv(double x) { return picojson::value((double)x); }
-inline picojson::value to_jv(std::string const &x) {
-    return picojson::value(x);
-}
-
-template <typename T> picojson::value to_jv(std::vector<T> const &v) {
-    std::vector<picojson::value> ret;
-    std::transform(v.begin(), v.end(), std::back_inserter(ret),
-                   [](auto x) { return to_jv(x); });
-    return picojson::value(ret);
-}
-
-inline void from_jv(picojson::value const &jv, int *p) {
-    *p = (int)jv.get<double>();
-}
-inline void from_jv(picojson::value const &jv, unsigned int *p) {
-    *p = (unsigned int)jv.get<double>();
-}
-inline void from_jv(picojson::value const &jv, double *p) {
-    *p = (double)jv.get<double>();
-}
-inline void from_jv(picojson::value const &jv, std::string *p) {
-    *p = jv.to_str();
-}
-template <typename T>
-void from_jv(picojson::value const &jv, std::vector<T> *vec) {
-    auto jvec = jv.get<picojson::value::array>();
-    std::transform(jvec.begin(), jvec.end(), vec->begin(), [](auto x) {
-        T y;
-        from_jv(x, &y);
-        return y;
-    });
-}
-
-} // namespace detail
 
 template <typename T, typename ROW_LABEL_T, typename COLUMN_LABEL_T = ROW_LABEL_T> struct Table2D : BenchResult {
     std::string label[2];
@@ -81,9 +40,9 @@ template <typename T, typename ROW_LABEL_T, typename COLUMN_LABEL_T = ROW_LABEL_
         dump2d(os, this, false, double_precision);
     }
 
-    picojson::value dump_json() override {
+    picojson::value dump_json() const override {
         typedef picojson::value v_t;
-        using namespace detail;
+        using namespace json;
 
         std::map<std::string, v_t> ret;
 
@@ -104,7 +63,7 @@ template <typename T, typename ROW_LABEL_T, typename COLUMN_LABEL_T = ROW_LABEL_
     static Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *parse_json_result(picojson::value const &value) {
         typedef Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> ret_t;
         typedef picojson::value v_t;
-        using namespace detail;
+        using namespace json;
 
         v_t const &l = value.get("label");
         std::string label0 = l.get(0).to_str();
@@ -136,9 +95,9 @@ template <typename T, typename LT> struct Table1D : BenchResult {
     T &operator[](int idx) { return v[idx]; }
     const T &operator[](int idx) const { return v[idx]; }
 
-    picojson::value dump_json() override {
+    picojson::value dump_json() const override {
         typedef picojson::value v_t;
-        using namespace detail;
+        using namespace json;
 
         std::map<std::string, v_t> ret;
 
@@ -155,7 +114,7 @@ template <typename T, typename LT> struct Table1D : BenchResult {
     }
 
     static Table1D<T, LT> *parse_json_result(picojson::value const &value) {
-        using namespace detail;
+        using namespace json;
 
         std::string label0;
         from_jv(value.get("label"), &label0);
@@ -284,8 +243,8 @@ void dump2d(std::ostream &out, Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *t, bool 
 
         out << '\n';
 
-        insert_char_n(out, '-', row_width);
-        out << '\n';
+        //insert_char_n(out, '-', row_width);
+        //out << '\n';
     }
 
     out << "v : " << t->label[1] << '\n';
@@ -338,8 +297,8 @@ void dump1d(std::ostream &out, Table1D<T, LT> *t, int double_precision) {
 
         out << '\n';
 
-        insert_char_n(out, '-', row_width);
-        out << '\n';
+        //insert_char_n(out, '-', row_width);
+        //out << '\n';
     }
 
     out << "v : " << t->label << '\n';

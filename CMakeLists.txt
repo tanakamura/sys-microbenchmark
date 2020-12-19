@@ -28,6 +28,7 @@ add_library(libsys-microbenchmark
   memory-bandwidth.cpp
   omp.cpp
   actual-freq.cpp
+  ipc.cpp
 
   x86-avx.cpp
   x86-avx512.cpp
