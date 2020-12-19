@@ -150,8 +150,8 @@ void bind_self_to_1proc(std::unique_ptr<ProcessorTable> const &tbl,
         exit(1);
     }
     if (membind) {
-        r = hwloc_set_membind(tbl->topo, idx.pu_obj->cpuset, HWLOC_MEMBIND_BIND,
-                              HWLOC_MEMBIND_THREAD | HWLOC_MEMBIND_NOCPUBIND);
+        hwloc_set_membind(tbl->topo, idx.pu_obj->cpuset, HWLOC_MEMBIND_BIND,
+                          HWLOC_MEMBIND_THREAD | HWLOC_MEMBIND_NOCPUBIND);
         if (r < 0) {
             perror("set_membind");
             exit(1);

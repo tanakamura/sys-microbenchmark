@@ -27,6 +27,7 @@ add_library(libsys-microbenchmark
   memory-latency.cpp
   memory-bandwidth.cpp
   omp.cpp
+  actual-freq.cpp
 
   x86-avx.cpp
   x86-avx512.cpp
@@ -49,7 +50,7 @@ target_include_directories(libsys-microbenchmark SYSTEM PUBLIC ${HWLOC_INCLUDE_D
 link_directories(${HWLOC_LIB_DIR})
 
 if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
-  set_source_files_properties(x86-avx.cpp PROPERTIES COMPILE_FLAGS -mavx)
+  set_source_files_properties(x86-avx.cpp PROPERTIES COMPILE_FLAGS "-mavx2 -mfma")
   set_source_files_properties(x86-avx512.cpp PROPERTIES COMPILE_FLAGS -mavx512f)
 endif()
 

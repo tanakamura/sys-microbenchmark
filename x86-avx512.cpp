@@ -1,4 +1,5 @@
 #include "x86funcs.h"
+#include "actual-freq.h"
 
 #ifdef X86
 
@@ -70,6 +71,55 @@ void avx512_stream_store(void *dst, size_t sz) {
         _mm512_stream_si512(&vdst[i + 2], _mm512_setzero_si512());
         _mm512_stream_si512(&vdst[i + 3], _mm512_setzero_si512());
     }
+}
+
+
+using namespace af;
+uint64_t busy_iadd32x16(uint64_t zero, oneshot_timer *ot) {
+    typedef uint32_t vec512i __attribute__((vector_size(64)));
+
+    vec512i x = {(uint32_t)zero};
+    vec512i ret = op(x, x, x, ot, [](auto x, auto y) { return x+y;});
+    return ret[0] + ret[1] + ret[2] + ret[3] + ret[4] + ret[5] + ret[6] + ret[7];
+}
+
+using namespace af;
+uint64_t busy_imul32x16(uint64_t zero, oneshot_timer *ot) {
+    typedef uint32_t vec512i __attribute__((vector_size(64)));
+
+    vec512i x = {(uint32_t)zero};
+    vec512i ret = op(x, x, x, ot, [](auto x, auto y) { return x*y;});
+    return ret[0] + ret[1] + ret[2] + ret[3] + ret[4] + ret[5] + ret[6] + ret[7];
+}
+
+using namespace af;
+uint64_t busy_fadd64x8(uint64_t zero, oneshot_timer *ot) {
+    typedef double vec512d __attribute__((vector_size(64)));
+
+    vec512d x = {(double)zero};
+    vec512d y = x + x;
+    vec512d ret = opf(x, y, x, ot, [](auto x, auto y) { return x+y;});
+    return ret[0] + ret[1] + ret[2] + ret[3];
+}
+
+using namespace af;
+uint64_t busy_fmul64x8(uint64_t zero, oneshot_timer *ot) {
+    typedef double vec512d __attribute__((vector_size(64)));
+
+    vec512d x = {(double)zero};
+    vec512d y = x + x;
+    vec512d ret = opf(x, y, x, ot, [](auto x, auto y) { return x*y;});
+    return ret[0] + ret[1] + ret[2] + ret[3];
+}
+
+using namespace af;
+uint64_t busy_fma64x8(uint64_t zero, oneshot_timer *ot) {
+    typedef double vec512d __attribute__((vector_size(64)));
+
+    vec512d x = {(double)1.93};
+    vec512d y = x + x;
+    vec512d ret = opf(x, y, x, ot, [](auto x, auto y) { return x*y+x;});
+    return ret[0] + ret[1] + ret[2] + ret[3];
 }
 
 }

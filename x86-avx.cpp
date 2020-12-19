@@ -1,4 +1,5 @@
 #include "x86funcs.h"
+#include "actual-freq.h"
 
 #ifdef X86
 #include <immintrin.h>
@@ -71,6 +72,54 @@ void avx256_stream_store(void *dst, size_t sz) {
     }
 }
 
+
+using namespace af;
+uint64_t busy_iadd32x8(uint64_t zero, oneshot_timer *ot) {
+    typedef uint32_t vec256i __attribute__((vector_size(32)));
+
+    vec256i x = {(uint32_t)zero};
+    vec256i ret = op(x, x, x, ot, [](auto x, auto y) { return x+y;});
+    return ret[0] + ret[1] + ret[2] + ret[3] + ret[4] + ret[5] + ret[6] + ret[7];
+}
+
+using namespace af;
+uint64_t busy_imul32x8(uint64_t zero, oneshot_timer *ot) {
+    typedef uint32_t vec256i __attribute__((vector_size(32)));
+
+    vec256i x = {(uint32_t)zero};
+    vec256i ret = op(x, x, x, ot, [](auto x, auto y) { return x*y;});
+    return ret[0] + ret[1] + ret[2] + ret[3] + ret[4] + ret[5] + ret[6] + ret[7];
+}
+
+using namespace af;
+uint64_t busy_fadd64x4(uint64_t zero, oneshot_timer *ot) {
+    typedef double vec256d __attribute__((vector_size(32)));
+
+    vec256d x = {(double)zero};
+    vec256d y = x + x;
+    vec256d ret = opf(x, y, x, ot, [](auto x, auto y) { return x+y;});
+    return ret[0] + ret[1] + ret[2] + ret[3];
+}
+
+using namespace af;
+uint64_t busy_fmul64x4(uint64_t zero, oneshot_timer *ot) {
+    typedef double vec256d __attribute__((vector_size(32)));
+
+    vec256d x = {(double)zero};
+    vec256d y = x + x;
+    vec256d ret = opf(x, y, x, ot, [](auto x, auto y) { return x*y;});
+    return ret[0] + ret[1] + ret[2] + ret[3];
+}
+
+using namespace af;
+uint64_t busy_fma64x4(uint64_t zero, oneshot_timer *ot) {
+    typedef double vec256d __attribute__((vector_size(32)));
+
+    vec256d x = {(double)1.93};
+    vec256d y = x + x;
+    vec256d ret = opf(x, y, x, ot, [](auto x, auto y) { return x*y+x;});
+    return ret[0] + ret[1] + ret[2] + ret[3];
+}
 
 }
 

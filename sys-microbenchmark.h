@@ -58,6 +58,7 @@ struct BenchDesc {
     F(memory_random_access_seq)                                         \
     F(memory_random_access_para)                                         \
     F(openmp)                                                           \
+    F(actual_freq)
 
 #define DEFINE_ENTRY(B) std::unique_ptr<BenchDesc> get_##B##_desc();
 

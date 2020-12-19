@@ -22,6 +22,7 @@ run(smbm::GlobalState *g,
     std::cout << "==== " << b->name << " ====\n";
     {
         auto result = b->run(g);
+        std::cout << std::fixed << std::setprecision(b->double_precision());
         result->dump_human_readable(std::cout, b->double_precision());
         (*this_obj)[b->name] = result->dump_json();
     }
@@ -146,8 +147,6 @@ int main(int argc, char **argv) {
     this_obj["os"] = picojson::value("Windows");
 
 #endif
-
-    std::cout << std::fixed << std::setprecision(PRINT_DOUBLE_PRECISION);
 
     if (optind == argc) {
         for (auto &&b : bench_list) {
