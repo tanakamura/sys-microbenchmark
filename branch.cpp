@@ -185,9 +185,9 @@ struct RandomBranch : public BenchDesc {
                 (*ret)[row++] = r.nsec / ((i0+1)*i1);
             };
 
-            add_label(i/2, i*2);
+            add_label(i/4, i*4);
             add_label(i, i);
-            add_label(i*2, i/2);
+            add_label(i*4, i/4);
         }
 
         ret->row_label = row_label;
