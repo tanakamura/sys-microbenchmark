@@ -1,18 +1,17 @@
 #pragma once
 
-#include "sys-microbenchmark.h"
 #include "picojson.h"
+#include "sys-microbenchmark.h"
 
 namespace smbm {
 
 namespace json {
 inline picojson::value to_jv(int x) { return picojson::value((double)x); }
+inline picojson::value to_jv(char x) { return picojson::value((double)x); }
 inline picojson::value to_jv(unsigned int x) {
     return picojson::value((double)x);
 }
-inline picojson::value to_jv(BenchResult const *r) {
-    return r->dump_json();
-}
+inline picojson::value to_jv(BenchResult const *r) { return r->dump_json(); }
 
 inline picojson::value to_jv(double x) { return picojson::value((double)x); }
 inline picojson::value to_jv(std::string const &x) {
@@ -28,6 +27,9 @@ template <typename T> picojson::value to_jv(std::vector<T> const &v) {
 
 inline void from_jv(picojson::value const &jv, int *p) {
     *p = (int)jv.get<double>();
+}
+inline void from_jv(picojson::value const &jv, char *p) {
+    *p = (char)jv.get<double>();
 }
 inline void from_jv(picojson::value const &jv, unsigned int *p) {
     *p = (unsigned int)jv.get<double>();

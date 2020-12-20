@@ -60,6 +60,7 @@ struct BenchDesc {
     F(openmp)                                                           \
     F(actual_freq)                                                      \
     F(inter_processor_communication)           \
+    F(branch)           \
 
 #define DEFINE_ENTRY(B) std::unique_ptr<BenchDesc> get_##B##_desc();
 
@@ -214,7 +215,8 @@ struct GlobalState {
 #endif
 
 #ifdef HAVE_HW_PERF_COUNTER
-    int perf_fd;
+    int perf_fd_cycle;
+    int perf_fd_branch;
     bool hw_perf_counter_available;
     bool is_hw_perf_counter_available() const {
         return hw_perf_counter_available;

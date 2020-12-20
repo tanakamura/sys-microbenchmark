@@ -101,9 +101,9 @@ GlobalState::GlobalState() : proc_table(new ProcessorTable()) {
         attr.config = PERF_COUNT_HW_CPU_CYCLES;
         attr.exclude_kernel = 1;
 
-        this->perf_fd = perf_event_open(&attr, 0, -1, -1, 0);
+        this->perf_fd_cycle = perf_event_open(&attr, 0, -1, -1, 0);
 
-        if (this->perf_fd == -1) {
+        if (this->perf_fd_cycle == -1) {
             this->hw_perf_counter_available = false;
 
             perror("perf_event_open");
@@ -111,6 +111,14 @@ GlobalState::GlobalState() : proc_table(new ProcessorTable()) {
                             "/proc/sys/kernel/perf_event_paranoid' in shell\n");
         } else {
             this->hw_perf_counter_available = true;
+
+            memset(&attr, 0, sizeof(attr));
+            attr.type = PERF_TYPE_HARDWARE;
+            attr.size = sizeof(attr);
+            attr.config = PERF_COUNT_HW_BRANCH_MISSES;
+            attr.exclude_kernel = 1;
+
+            this->perf_fd_branch = perf_event_open(&attr, 0, -1, -1, 0);
         }
     }
 
@@ -174,7 +182,8 @@ GlobalState::~GlobalState() {
 
 #ifdef __linux__
     if (this->hw_perf_counter_available) {
-        close(this->perf_fd);
+        close(this->perf_fd_cycle);
+        close(this->perf_fd_branch);
     }
 #endif
 }
@@ -182,7 +191,7 @@ GlobalState::~GlobalState() {
 #ifdef __linux__
 uint64_t GlobalState::get_hw_cpucycle() const {
     long long val;
-    ssize_t sz = read(this->perf_fd, &val, sizeof(val));
+    ssize_t sz = read(this->perf_fd_cycle, &val, sizeof(val));
     if (sz != sizeof(val)) {
         perror("read");
         exit(1);
@@ -190,6 +199,17 @@ uint64_t GlobalState::get_hw_cpucycle() const {
 
     return val;
 }
+uint64_t GlobalState::get_hw_branch_miss() const {
+    long long val;
+    ssize_t sz = read(this->perf_fd_branch, &val, sizeof(val));
+    if (sz != sizeof(val)) {
+        perror("read");
+        exit(1);
+    }
+
+    return val;
+}
+
 #endif
 
 void warmup_thread(const GlobalState *g) {

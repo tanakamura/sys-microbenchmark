@@ -29,6 +29,7 @@ add_library(libsys-microbenchmark
   omp.cpp
   actual-freq.cpp
   ipc.cpp
+  branch.cpp
 
   x86-avx.cpp
   x86-avx512.cpp

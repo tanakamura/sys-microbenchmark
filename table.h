@@ -143,6 +143,9 @@ inline unsigned int get_column_width(int x, int) {
 
     return (unsigned int)ceil(log10(x + 1));
 }
+inline unsigned int get_column_width(char x, int) {
+    return 1;
+}
 
 inline unsigned int get_column_width(double x, int double_precision) {
     std::stringstream ss;
