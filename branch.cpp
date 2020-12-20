@@ -51,7 +51,7 @@ struct BranchResultEntry {
 
         for (int l=0; l<col; l++) {
             if (l == col-1) {
-                (*this->tf_table)[row][l] = 'F';
+                (*this->tf_table)[row][l] = 'N';
             } else {
                 (*this->tf_table)[row][l] = 'T';
             }
@@ -235,7 +235,7 @@ set_tf(BranchResultEntry *e, const BranchTable *t)
 {
     for (int inst=0; inst<t->ninst; inst++) {
         for (int loop=0; loop<t->nloop; loop++) {
-            (*e->tf_table)[inst][loop] = t->p[loop*t->ninst + inst] ? 'T' : 'F';
+            (*e->tf_table)[inst][loop] = t->p[loop*t->ninst + inst] ? 'T' : 'N';
         }
     }
 }
@@ -347,6 +347,32 @@ static void rand64(BranchTable &t) {
     }
 }
 
+static void all_true256x128(BranchTable &t) {
+    int ninst=256;
+    int nloop=128;
+
+    t = BranchTable(ninst, nloop);
+
+    for (int i=0; i<ninst*nloop; i++) {
+        t.p[i] = 1;
+    }
+}
+
+static void rand256x128(BranchTable &t) {
+    int ninst=256;
+    int nloop=128;
+
+    std::mt19937 engine(0);
+    std::uniform_int_distribution<> dist(0,1);
+
+    t = BranchTable(ninst, nloop);
+
+    for (int i=0; i<ninst*nloop; i++) {
+        int v = dist(engine);
+        t.p[i] = v;
+    }
+}
+
 static void all_true256(BranchTable &t) {
     int ninst=256;
     int nloop=256;
@@ -380,6 +406,8 @@ static void rand256(BranchTable &t) {
     F(rand32)                                   \
     F(all_true64)                               \
     F(rand64)                                   \
+    F(all_true256x128)                               \
+    F(rand256x128)                                   \
     F(all_true256)                                   \
     F(rand256)                                   \
 
