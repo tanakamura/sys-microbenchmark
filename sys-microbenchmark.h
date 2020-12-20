@@ -60,7 +60,7 @@ struct BenchDesc {
     F(openmp)                                                           \
     F(actual_freq)                                                      \
     F(inter_processor_communication)           \
-    F(branch)           \
+    F(random_branch)                           \
 
 #define DEFINE_ENTRY(B) std::unique_ptr<BenchDesc> get_##B##_desc();
 

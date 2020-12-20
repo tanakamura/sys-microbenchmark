@@ -13,125 +13,6 @@ namespace smbm {
 
 namespace {
 
-using namespace json;
-
-struct BranchResultEntry {
-    typedef Table2D<char,int> tf_table_t;
-    typedef Table1D<double,std::string> result_table_t;
-
-    std::shared_ptr<tf_table_t> tf_table;
-    std::shared_ptr<result_table_t> result_table;
-    int cycle;
-    double nsec;
-    BranchResultEntry(int row, int col, bool has_perf_counter)
-        :tf_table( new tf_table_t("instruction", "loop", row+1, col)),
-         result_table( new result_table_t("result", has_perf_counter?3:1) )
-    {
-        std::vector<int> row_labels;
-        for (int i=0; i<row+1; i++) {
-            row_labels.push_back(i);
-        }
-        tf_table->row_label = row_labels;
-
-        std::vector<int> col_labels;
-        for (int i=0; i<col; i++) {
-            col_labels.push_back(0);
-        }
-        tf_table->column_label = col_labels;
-
-        std::vector<std::string> result_tag;
-        result_tag.push_back("nsec");
-        if (has_perf_counter) {
-            result_tag.push_back("cycles");
-            result_tag.push_back("branch-miss");
-        }
-
-        result_table->row_label = result_tag;
-        result_table->column_label = "result";
-
-        for (int l=0; l<col; l++) {
-            if (l == col-1) {
-                (*this->tf_table)[row][l] = 'N';
-            } else {
-                (*this->tf_table)[row][l] = 'T';
-            }
-        }
-    }
-
-    BranchResultEntry(picojson::value const &value) {
-        auto obj = value.get<picojson::object>();
-
-        auto tf = tf_table_t::parse_json_result(obj["tf"]);
-        this->tf_table.reset(tf);
-
-        auto r = result_table_t::parse_json_result(obj["result"]);
-        this->result_table.reset(r);
-    }
-
-    picojson::value dump_json() const {
-        picojson::object ret;
-
-        ret["tf"] = tf_table->dump_json();
-        ret["result"] = result_table->dump_json();
-
-        return picojson::value(ret);
-    }
-
-    void dump_human_readable(std::ostream &os, int double_precision) const {
-        tf_table->dump_human_readable(os, double_precision);
-        result_table->dump_human_readable(os, double_precision);
-    }
-};
-
-
-struct BranchResult
-    :public BenchResult
-{
-    std::vector<BranchResultEntry> results;
-
-    static std::unique_ptr<BenchResult> parse_json_result(picojson::value const &value) {
-        auto obj = value.get<picojson::array>();
-        std::unique_ptr<BranchResult> r(new BranchResult);
-
-        for (auto && entry : obj) {
-            r->results.emplace_back(entry);
-        }
-
-        return std::unique_ptr<BenchResult>(r.release());
-    }
-
-    picojson::value dump_json() const override {
-        std::vector<picojson::value> ret;
-
-        for (auto && entry : results) {
-            ret.push_back(entry.dump_json());
-        }
-
-        return picojson::value(ret);
-    }
-
-    void dump_human_readable(std::ostream &os, int double_precision) override {
-        for (auto && entry : results) {
-            entry.dump_human_readable(os, double_precision);
-        }
-    }
-};
-
-struct BranchTable {
-    std::vector<char> p;
-    int ninst, nloop;
-
-    BranchTable(int ninst, int nloop)
-        :p(ninst*nloop), ninst(ninst), nloop(nloop)
-    {
-        memset(&p[0], 0, ninst*nloop);
-    }
-
-    ~BranchTable()
-    {
-    }
-};
-
 struct Loop {
     typedef int (*loop_func_t) (const char *table, int loop);
 
@@ -230,22 +111,29 @@ struct Loop {
     }
 };
 
-static void
-set_tf(BranchResultEntry *e, const BranchTable *t)
-{
-    for (int inst=0; inst<t->ninst; inst++) {
-        for (int loop=0; loop<t->nloop; loop++) {
-            (*e->tf_table)[inst][loop] = t->p[loop*t->ninst + inst] ? 'T' : 'N';
-        }
-    }
-}
+struct ResultValue {
+    double nsec;
+    double cycle;
+    double branch_miss;
+};
 
-static BranchResultEntry run1(const GlobalState *g, const BranchTable *t) {
+static ResultValue run1(const GlobalState *g, int ninst, int nloop) {
     perf_counter_value_t cycle0=0, branch0=0, cycle1=0, branch1=0;
     userland_timer_value t0, t1;
+    struct ResultValue ret = {};
 
-    Loop loop(t->ninst);
-    loop.invoke(&t->p[0], t->nloop);
+    std::vector<char> table(ninst * nloop);
+
+    std::mt19937 engine(0);
+    std::uniform_int_distribution<> dist(0,1);
+
+    for (int i=0; i<ninst*nloop; i++) {
+        int v = dist(engine);
+        table[i] = v;
+    }
+
+    Loop loop(ninst);
+    loop.invoke(&table[0], nloop);
 
     t0 = userland_timer_value::get();
     if (g->is_hw_perf_counter_available()) {
@@ -255,187 +143,67 @@ static BranchResultEntry run1(const GlobalState *g, const BranchTable *t) {
 
     int niter = 1024;
     for (int i=0; i<niter; i++) {
-        loop.invoke(&t->p[0], t->nloop);
+        loop.invoke(&table[0], nloop);
     }
+    t1 = userland_timer_value::get();
 
     if (g->is_hw_perf_counter_available()) {
         cycle1 = g->get_hw_cpucycle();
         branch1 = g->get_hw_branch_miss();
-        t1 = userland_timer_value::get();
-
-        BranchResultEntry ret(t->ninst, t->nloop, true);
-
-        (*ret.result_table)[0] = (g->userland_timer_delta_to_sec(t1-t0)/(double)niter)*1e9;
-        (*ret.result_table)[1] = (cycle1 - cycle0)/(double)niter;
-        (*ret.result_table)[2] = (branch1 - branch0)/(double)niter;
-
-        set_tf(&ret, t);
-        return ret;
-    } else {
-        t1 = userland_timer_value::get();
-        BranchResultEntry ret(t->ninst, t->nloop, false);
-        (*ret.result_table)[0] = g->userland_timer_delta_to_sec(t1-t0)/(double)niter;
-        set_tf(&ret, t);
-        return ret;
+        ret.cycle = (cycle1 - cycle0)/(double)niter;
+        ret.branch_miss = (branch1 - branch0)/(double)niter;
     }
+
+    ret.nsec = (g->userland_timer_delta_to_sec(t1-t0)/(double)niter)*1e9;
+
+    return ret;
 }
 
-static void all_true16(BranchTable &t) {
-    int ninst=16;
-    int nloop=16;
-
-    t = BranchTable(ninst, nloop);
-
-    for (int i=0; i<ninst*nloop; i++) {
-        t.p[i] = 1;
-    }
-}
-
-static void all_true64(BranchTable &t) {
-    int ninst=64;
-    int nloop=64;
-
-    t = BranchTable(ninst, nloop);
-
-    for (int i=0; i<ninst*nloop; i++) {
-        t.p[i] = 1;
-    }
-}
-
-static void rand16(BranchTable &t) {
-    int ninst=16;
-    int nloop=16;
-
-    std::mt19937 engine(0);
-    std::uniform_int_distribution<> dist(0,1);
-
-    t = BranchTable(ninst, nloop);
-
-    for (int i=0; i<ninst*nloop; i++) {
-        int v = dist(engine);
-        t.p[i] = v;
-    }
-}
-
-static void rand32(BranchTable &t) {
-    int ninst=32;
-    int nloop=32;
-
-    std::mt19937 engine(0);
-    std::uniform_int_distribution<> dist(0,1);
-
-    t = BranchTable(ninst, nloop);
-
-    for (int i=0; i<ninst*nloop; i++) {
-        int v = dist(engine);
-        t.p[i] = v;
-    }
-}
-
-static void rand64(BranchTable &t) {
-    int ninst=64;
-    int nloop=64;
-
-    std::mt19937 engine(0);
-    std::uniform_int_distribution<> dist(0,1);
-
-    t = BranchTable(ninst, nloop);
-
-    for (int i=0; i<ninst*nloop; i++) {
-        int v = dist(engine);
-        t.p[i] = v;
-    }
-}
-
-static void all_true256x128(BranchTable &t) {
-    int ninst=256;
-    int nloop=128;
-
-    t = BranchTable(ninst, nloop);
-
-    for (int i=0; i<ninst*nloop; i++) {
-        t.p[i] = 1;
-    }
-}
-
-static void rand256x128(BranchTable &t) {
-    int ninst=256;
-    int nloop=128;
-
-    std::mt19937 engine(0);
-    std::uniform_int_distribution<> dist(0,1);
-
-    t = BranchTable(ninst, nloop);
-
-    for (int i=0; i<ninst*nloop; i++) {
-        int v = dist(engine);
-        t.p[i] = v;
-    }
-}
-
-static void all_true256(BranchTable &t) {
-    int ninst=256;
-    int nloop=256;
-
-    t = BranchTable(ninst, nloop);
-
-    for (int i=0; i<ninst*nloop; i++) {
-        t.p[i] = 1;
-    }
-}
-
-static void rand256(BranchTable &t) {
-    int ninst=256;
-    int nloop=256;
-
-    std::mt19937 engine(0);
-    std::uniform_int_distribution<> dist(0,1);
-
-    t = BranchTable(ninst, nloop);
-
-    for (int i=0; i<ninst*nloop; i++) {
-        int v = dist(engine);
-        t.p[i] = v;
-    }
-}
-
-
-#define FOR_EACH_TEST(F)                        \
-    F(all_true16)                                 \
-    F(rand16)                                   \
-    F(rand32)                                   \
-    F(all_true64)                               \
-    F(rand64)                                   \
-    F(all_true256x128)                               \
-    F(rand256x128)                                   \
-    F(all_true256)                                   \
-    F(rand256)                                   \
-
-struct Branch : public BenchDesc {
-    Branch()
-        :BenchDesc("branch")
+struct RandomBranch : public BenchDesc {
+    RandomBranch()
+        :BenchDesc("random-branch")
     {}
 
+    typedef Table1D<double,std::string> table_t;
+
     virtual result_t run(GlobalState const *g) override {
-        auto ret = std::make_unique<BranchResult>();
-        BranchTable bt(1,1);
+        table_t *ret;
 
-#define RUN1(t) { t(bt); ret->results.push_back(run1(g,&bt)); }
+        std::vector<int> count_table = {16, 32, 64, 128, 256, 512};
+        std::vector<std::string> row_label;
+        int row=0;
 
-        FOR_EACH_TEST(RUN1)
+        ret = new table_t("table size (inst x nloop)", count_table.size() * 3);
+        ret->column_label = "nsec/branch";
 
-        return result_t(ret.release());
+        for (int i : count_table) {
+            auto add_label = [g,&row_label,ret,&row](int i0, int i1) {
+                auto r = run1(g, i0, i1);
+                char buf[512];
+                sprintf(buf, "%6d x %6d", i0, i1);
+                row_label.push_back(buf);
+                (*ret)[row++] = r.nsec / ((i0+1)*i1);
+            };
+
+            add_label(i/2, i*2);
+            add_label(i, i);
+            add_label(i*2, i/2);
+        }
+
+        ret->row_label = row_label;
+
+        return result_t(ret);
     }
     virtual result_t parse_json_result(picojson::value const &v) {
-        return result_t(BranchResult::parse_json_result(v));
+        return result_t(table_t::parse_json_result(v));
     }
 
 };
 }
 
 
-std::unique_ptr<BenchDesc> get_branch_desc() {
-    return std::unique_ptr<BenchDesc>(new Branch());
+std::unique_ptr<BenchDesc> get_random_branch_desc() {
+    return std::unique_ptr<BenchDesc>(new RandomBranch());
 }
 
 
