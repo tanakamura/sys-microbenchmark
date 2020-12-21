@@ -4,12 +4,7 @@
 #include <random>
 #define _USE_MATH_DEFINES
 #include <math.h>
-
-#ifdef POSIX
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#endif
+#include "memalloc.h"
 
 namespace smbm {
 
@@ -18,32 +13,23 @@ namespace {
 struct Loop {
     typedef int (*loop_func_t)(const char *table, int loop);
 
-    size_t buffer_len;
     size_t inst_len;
-    char *memory;
+
+    ExecutableMemory em;
 
     Loop(const Loop &r) = delete;
     Loop &operator=(const Loop &r) = delete;
 
-    ~Loop() { munmap(memory, buffer_len); }
+    ~Loop() { free_executable(&em); }
 
 #ifdef X86
     Loop(int ninsn) {
         size_t alloc_size = 10 * ninsn + 11;
-        size_t map_size = (alloc_size + 4095) & ~4095;
+        this->em = alloc_exeutable(alloc_size);
+        char *p = (char*)this->em.p;
+        char *p0 = p;
 
-        char *p0 = (char *)mmap(0, map_size, PROT_READ | PROT_WRITE | PROT_EXEC,
-                                MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
-        char *p = p0;
-
-        if (p0 == MAP_FAILED) {
-            perror("mmap");
-            exit(1);
-        }
-
-        this->buffer_len = map_size;
         this->inst_len = alloc_size;
-        this->memory = p0;
 
 #ifdef WINDOWS
         uint8_t first_argument = 0x1;  /* rcx */
@@ -109,7 +95,7 @@ struct Loop {
 #endif
 
     void invoke(char const *table, int nloop) {
-        ((loop_func_t)this->memory)(table, nloop);
+        ((loop_func_t)this->em.p)(table, nloop);
     }
 };
 

@@ -50,6 +50,7 @@
 
 #ifdef X86
 #define yield_thread() _mm_pause()
+#define HAVE_YIELD_INSTRCUTION
 #else
 #define yield_thread() 
 #endif

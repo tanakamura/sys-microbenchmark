@@ -60,6 +60,7 @@ struct BenchDesc {
     F(openmp)                                                                  \
     F(actual_freq)                                                             \
     F(inter_processor_communication)                                           \
+    F(inter_processor_communication_yield)                                    \
     F(random_branch)                                                           \
     F(inst_random_branch)                                                      \
     F(iter_random_branch)                                                      \

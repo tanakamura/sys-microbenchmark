@@ -22,6 +22,7 @@ struct ThreadInfo {
     double delay;
     int tid;
     int cpu;
+    bool use_yield;
 
     Shared *s;
 
@@ -39,6 +40,8 @@ thread_func(void *p)
         auto pi = ti->g->proc_table->logical_index_to_processor(ti->cpu, PROC_ORDER_INNER_TO_OUTER);
         bind_self_to_1proc(ti->g->proc_table, pi, true);
     }
+
+    bool use_yield = ti->use_yield;
 
     wait_barrier(&ti->s->barrier, 2);
 
@@ -61,7 +64,9 @@ thread_func(void *p)
                     break;
                 }
                 compiler_mb();
-                yield_thread();
+                if (use_yield) {
+                    yield_thread();
+                }
             }
 
             count++;
@@ -85,7 +90,9 @@ thread_func(void *p)
                     break;
                 }
                 compiler_mb();
-                yield_thread();
+                if (use_yield) {
+                    yield_thread();
+                }
             }
 
             s->to_p0 = self_cur;
@@ -122,9 +129,11 @@ struct IPC
     :public BenchDesc
 {
     typedef Table2D<double,uint32_t,uint32_t> table_t;
+    bool use_yield;
 
-    IPC()
-        :BenchDesc("inter-processor-communication")
+    IPC(bool use_yield)
+        :BenchDesc(use_yield?"inter-processor-communication-with-yield":"inter-processor-communication"),
+         use_yield(use_yield)
     {}
 
     virtual result_t run(GlobalState const *g) override {
@@ -145,20 +154,27 @@ struct IPC
 
         ti[0].g = g;
         ti[0].tid = 0;
-        ti[0].delay = 0.2;
+        ti[0].delay = 0.15;
         ti[0].s = &s;
+        ti[0].use_yield = use_yield;
 
         ti[1].g = g;
         ti[1].tid = 1;
-        ti[1].delay = 0.2;
+        ti[1].delay = 0.15;
         ti[1].s = &s;
+        ti[1].use_yield = use_yield;
 
         for (int t0=0; t0<max_thread; t0++) {
             for (int t1=0; t1<max_thread; t1++) {
-                if (t0 == t1) {
+                if (t1 == t0) {
                     (*result_table)[t0][t1] = 0;
                     continue;
                 }
+                if (t0 > t1) {
+                    (*result_table)[t0][t1] = (*result_table)[t1][t0];
+                    continue;
+                }
+                    
 
                 s.to_p0 = 0;
                 s.to_p1 = 0;
@@ -193,7 +209,15 @@ struct IPC
 
     bool available(const GlobalState *g) override {
         int max_thread = g->proc_table->get_active_cpu_count();
-        return max_thread > 1;
+        if (max_thread == 1) {
+            return false;
+        }
+
+#ifdef HAVE_YIELD_INSTRCUTION
+        return true;
+#else
+        return ! this->use_yield;
+#endif
     }
 
     int double_precision() override {
@@ -205,7 +229,10 @@ struct IPC
 };
 
 std::unique_ptr<BenchDesc> get_inter_processor_communication_desc() {
-    return std::unique_ptr<BenchDesc>(new IPC());
+    return std::unique_ptr<BenchDesc>(new IPC(false));
+}
+std::unique_ptr<BenchDesc> get_inter_processor_communication_yield_desc() {
+    return std::unique_ptr<BenchDesc>(new IPC(true));
 }
 
 }
