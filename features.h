@@ -48,6 +48,13 @@
 #endif
 
 
+#ifdef X86
+#define yield_thread() _mm_pause()
+#else
+#define yield_thread() 
+#endif
+
+
 namespace smbm {
 typedef uint64_t vec128i __attribute__((vector_size(16)));
 }

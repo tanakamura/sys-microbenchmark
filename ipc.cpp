@@ -61,6 +61,7 @@ thread_func(void *p)
                     break;
                 }
                 compiler_mb();
+                yield_thread();
             }
 
             count++;
@@ -84,6 +85,7 @@ thread_func(void *p)
                     break;
                 }
                 compiler_mb();
+                yield_thread();
             }
 
             s->to_p0 = self_cur;

@@ -49,18 +49,25 @@ struct BenchDesc {
 #define FOR_EACH_BENCHMARK_LIST(F)                                             \
     F(idiv32)                                                                  \
     F(idiv64)                                                                  \
-    F(idiv32_cycle)                                                                  \
-    F(idiv64_cycle)                                                           \
+    F(idiv32_cycle)                                                            \
+    F(idiv64_cycle)                                                            \
     F(syscall)                                                                 \
-    F(memory_bandwidth_1thread)                                                 \
-    F(memory_bandwidth_full_thread)                                     \
-    F(cache_bandwidth)                                                  \
-    F(memory_random_access_seq)                                         \
-    F(memory_random_access_para)                                         \
-    F(openmp)                                                           \
-    F(actual_freq)                                                      \
-    F(inter_processor_communication)           \
-    F(random_branch)                           \
+    F(memory_bandwidth_1thread)                                                \
+    F(memory_bandwidth_full_thread)                                            \
+    F(cache_bandwidth)                                                         \
+    F(memory_random_access_seq)                                                \
+    F(memory_random_access_para)                                               \
+    F(openmp)                                                                  \
+    F(actual_freq)                                                             \
+    F(inter_processor_communication)                                           \
+    F(random_branch)                                                           \
+    F(inst_random_branch)                                                      \
+    F(iter_random_branch)                                                      \
+    F(cos_branch)                                                       \
+    F(random_branch_hit)                                                           \
+    F(inst_random_branch_hit)                                                      \
+    F(iter_random_branch_hit)                                           \
+    F(cos_branch_hit)
 
 #define DEFINE_ENTRY(B) std::unique_ptr<BenchDesc> get_##B##_desc();
 
@@ -68,7 +75,6 @@ FOR_EACH_BENCHMARK_LIST(DEFINE_ENTRY)
 
 #define REP8(A) A A A A A A A A
 #define REP16(A) REP8(A) REP8(A)
-
 
 #ifdef POSIX
 
@@ -111,9 +117,7 @@ struct ostimer_value {
         return ret;
     }
 
-    static const char *name() {
-        return "clock_gettime";
-    }
+    static const char *name() { return "clock_gettime"; }
 };
 #elif defined WINDOWS
 
@@ -133,10 +137,7 @@ struct ostimer_value {
         return ret;
     }
 
-    static const char *name() {
-        return "QueryPerformanceCounter";
-    }
-
+    static const char *name() { return "QueryPerformanceCounter"; }
 };
 
 #else
@@ -168,13 +169,9 @@ struct userland_timer_value {
     }
 
 #ifdef __aarch64__
-    static const char *name() {
-        return "cntvct";
-    }
+    static const char *name() { return "cntvct"; }
 #else
-    static const char *name() {
-        return "rdtscp";
-    }
+    static const char *name() { return "rdtscp"; }
 #endif
 
 #else
@@ -222,13 +219,12 @@ struct GlobalState {
         return hw_perf_counter_available;
     }
 #else
-    bool is_hw_perf_counter_available() const {
-        return false;
-    }
+    bool is_hw_perf_counter_available() const { return false; }
 #endif
 
     userland_timer_value
-    inc_sec_userland_timer(struct userland_timer_value const *t, double sec) const;
+    inc_sec_userland_timer(struct userland_timer_value const *t,
+                           double sec) const;
     GlobalState();
     ~GlobalState();
     double userland_timer_delta_to_sec(uint64_t delta) const;
@@ -236,13 +232,9 @@ struct GlobalState {
     uint64_t *zero_memory;
     uint64_t **dustbox;
 
-    uint64_t getzero() const {
-        return *zero_memory;
-    };
+    uint64_t getzero() const { return *zero_memory; };
 
-    void dummy_write(int cpu, uint64_t val) const {
-        dustbox[cpu][0] = val;
-    };
+    void dummy_write(int cpu, uint64_t val) const { dustbox[cpu][0] = val; };
 
 #ifdef HAVE_HW_PERF_COUNTER
     perf_counter_value_t get_hw_cpucycle() const;
@@ -260,8 +252,9 @@ struct GlobalState {
 #endif
 
     double ostimer_delta_to_sec(uint64_t delta) { return delta / ostimer_freq; }
-    uint64_t sec_to_ostimer_delta(double sec) { return (uint64_t)((sec * ostimer_freq) + 0.5); }
-
+    uint64_t sec_to_ostimer_delta(double sec) {
+        return (uint64_t)((sec * ostimer_freq) + 0.5);
+    }
 };
 
 void warmup_thread(GlobalState const *g);

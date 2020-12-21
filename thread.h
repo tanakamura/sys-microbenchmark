@@ -50,6 +50,7 @@ inline void wait_barrier(std::atomic<int> *p, int wait_count) {
         if ((*p) == wait_count) {
             break;
         }
+        yield_thread();
     }
     rmb();
 }

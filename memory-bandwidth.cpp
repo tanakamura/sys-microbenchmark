@@ -376,6 +376,7 @@ static void do_test(struct thread_shared *clients, char *dst, char *src,
                     }
 
                     compiler_mb();
+                    yield_thread();
                 }
             }
             double t1 = sec();
