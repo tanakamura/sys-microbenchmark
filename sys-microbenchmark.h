@@ -65,10 +65,12 @@ struct BenchDesc {
     F(inst_random_branch)                                                      \
     F(iter_random_branch)                                                      \
     F(cos_branch)                                                       \
+    F(indirect_branch)                                              \
     F(random_branch_hit)                                                           \
     F(inst_random_branch_hit)                                                      \
     F(iter_random_branch_hit)                                           \
-    F(cos_branch_hit)
+    F(cos_branch_hit)                                                   \
+    F(indirect_branch_hit)                                                   \
 
 #define DEFINE_ENTRY(B) std::unique_ptr<BenchDesc> get_##B##_desc();
 

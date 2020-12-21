@@ -3,23 +3,19 @@
 #include "table.h"
 #include <random>
 #define _USE_MATH_DEFINES
-#include <math.h>
 #include "memalloc.h"
+#include <math.h>
 
 namespace smbm {
 
 namespace {
 
-
-static inline void
-output4(char *&p, uint32_t v)
-{
+static inline void output4(char *&p, uint32_t v) {
     *(p++) = (v >> (8 * 0)) & 0xff;
     *(p++) = (v >> (8 * 1)) & 0xff;
     *(p++) = (v >> (8 * 2)) & 0xff;
     *(p++) = (v >> (8 * 3)) & 0xff;
 }
-
 
 struct Loop {
     typedef int (*loop_func_t)(const char *table, int loop);
@@ -31,9 +27,7 @@ struct Loop {
     Loop(const Loop &r) = delete;
     Loop &operator=(const Loop &r) = delete;
 
-    ~Loop() {
-        free_executable(&em);
-    }
+    ~Loop() { free_executable(&em); }
 
 #ifdef X86
     Loop(int ninsn, bool indirect_branch, int nindirect_brach_target) {
@@ -43,16 +37,16 @@ struct Loop {
         uint64_t *jmp_table = 0;
 
         if (indirect_branch) {
-            inst_size = ninsn * ((12+3) + nindirect_brach_target) + 11 + 7;
+            inst_size = ninsn * ((12 + 3) + nindirect_brach_target) + 11 + 7;
             table_size = ninsn * nindirect_brach_target * 8;
             alloc_size = inst_size + table_size;
         } else {
-            inst_size = ninsn * (7+3) + 11;
+            inst_size = ninsn * (7 + 3) + 11;
             alloc_size = inst_size;
         }
 
         this->em = alloc_exeutable(alloc_size);
-        char *p = (char*)this->em.p;
+        char *p = (char *)this->em.p;
         char *p0 = p;
 
         this->inst_len = inst_size;
@@ -61,12 +55,12 @@ struct Loop {
             uint32_t table_delta = inst_size;
 
             /* lea r9, [rip + table_delta] */
-            *(p++) = 0x4c;      // 1
-            *(p++) = 0x8d;      // 2
-            *(p++) = 0x0d;      // 3
+            *(p++) = 0x4c; // 1
+            *(p++) = 0x8d; // 2
+            *(p++) = 0x0d; // 3
 
-            output4(p,table_delta - 7); // 7
-            jmp_table = (uint64_t*)(p0 + inst_size);
+            output4(p, table_delta - 7); // 7
+            jmp_table = (uint64_t *)(p0 + inst_size);
         }
 
 #ifdef WINDOWS
@@ -77,8 +71,8 @@ struct Loop {
         uint8_t second_argument = 0x6; /* rsi */
 #endif
 
-        *(p++) = 0x31;          // 1
-        *(p++) = 0xc0;          /* 2 : xor eax, eax */
+        *(p++) = 0x31; // 1
+        *(p++) = 0xc0; /* 2 : xor eax, eax */
 
         char *loop_start = p;
 
@@ -87,64 +81,64 @@ struct Loop {
 
             if (indirect_branch) {
                 /* movzq r8, byte [first_argument] */
-                *(p++) = 0x4c;  // 1
-                *(p++) = 0x0f;  // 2
-                *(p++) = 0xb6;  // 3
+                *(p++) = 0x4c;           // 1
+                *(p++) = 0x0f;           // 2
+                *(p++) = 0xb6;           // 3
                 *(p++) = first_argument; // 4
 
                 uint32_t table_offset = i * nindirect_brach_target * 8;
 
                 /* jmp [r9 + r8 *8 + table_offset] */
-                *(p++) = 0x43;  // 5
-                *(p++) = 0xff;  // 6
-                *(p++) = 0xa4;  // 7
-                *(p++) = 0xc1;  // 8
+                *(p++) = 0x43;            // 5
+                *(p++) = 0xff;            // 6
+                *(p++) = 0xa4;            // 7
+                *(p++) = 0xc1;            // 8
                 output4(p, table_offset); // 12
 
-                for (int ti=0; ti<nindirect_brach_target; ti++) {
-                    jmp_table[i*nindirect_brach_target + ti] = (uintptr_t)p;
+                for (int ti = 0; ti < nindirect_brach_target; ti++) {
+                    jmp_table[i * nindirect_brach_target + ti] = (uintptr_t)p;
                     *(p++) = 0x90; // nop
                 }
             } else {
                 /* cmp [first_argument], 0 */
-                *(p++) = 0x80;  // 1
+                *(p++) = 0x80;                    // 1
                 *(p++) = 0x38 | (first_argument); // 2
                 *(p++) = 1;                       // 3
 
                 /* jne +2 */
-                *(p++) = 0x75;  // 4
-                *(p++) = 0x2;   // 5
+                *(p++) = 0x75; // 4
+                *(p++) = 0x2;  // 5
 
                 /* inc eax */
-                *(p++) = 0xff;  // 6
-                *(p++) = 0xc0;  // 7
+                *(p++) = 0xff; // 6
+                *(p++) = 0xc0; // 7
             }
 
             /* inc first_argument */
-            *(p++) = 0x48;      // 1
-            *(p++) = 0xff;      // 2
+            *(p++) = 0x48;                  // 1
+            *(p++) = 0xff;                  // 2
             *(p++) = 0xc0 | first_argument; // 3
         }
 
         /* dec second_argument */
-        *(p++) = 0xff;          // 3
+        *(p++) = 0xff;                   // 3
         *(p++) = 0xc8 | second_argument; // 4
 
         /* jnz loop_begin */
         uint64_t delta = (p - loop_start) + 6;
         uint32_t disp = -delta;
 
-        *(p++) = 0x0f;          // 5
-        *(p++) = 0x85;          // 6
-        output4(p, disp);       // 10
+        *(p++) = 0x0f;    // 5
+        *(p++) = 0x85;    // 6
+        output4(p, disp); // 10
 
-        *(p++) = 0xc3;          // 11
+        *(p++) = 0xc3; // 11
 
         size_t actual_length = p - p0;
         if (actual_length != inst_size) {
             fprintf(stderr, "actual:%d alloc:%d\n", (int)actual_length,
                     (int)inst_size);
-            //abort();
+            // abort();
         }
     }
 #else
@@ -165,17 +159,24 @@ struct ResultValue {
 enum class GenMethod { FULL, ITER, INST, COS };
 
 static ResultValue run1(const GlobalState *g, int ninst, int nloop,
-                        GenMethod gm) {
+                        GenMethod gm, bool indirect,
+                        int nindirect_brach_target) {
     perf_counter_value_t cycle0 = 0, branch0 = 0, cycle1 = 0, branch1 = 0;
     userland_timer_value t0, t1;
     struct ResultValue ret = {};
 
     std::vector<char> table(ninst * nloop);
+    int rand_min = 0;
+    int rand_max = 1;
+
+    if (indirect) {
+        rand_max = nindirect_brach_target - 1;
+    }
 
     switch (gm) {
     case GenMethod::FULL: {
         std::mt19937 engine(0);
-        std::uniform_int_distribution<> dist(0, 1);
+        std::uniform_int_distribution<> dist(rand_min, rand_max);
 
         for (int i = 0; i < ninst * nloop; i++) {
             int v = dist(engine);
@@ -185,7 +186,7 @@ static ResultValue run1(const GlobalState *g, int ninst, int nloop,
 
     case GenMethod::INST: {
         std::mt19937 engine(0);
-        std::uniform_int_distribution<> dist(0, 1);
+        std::uniform_int_distribution<> dist(rand_min, rand_max);
 
         for (int i = 0; i < ninst; i++) {
             int v = dist(engine);
@@ -198,7 +199,7 @@ static ResultValue run1(const GlobalState *g, int ninst, int nloop,
 
     case GenMethod::ITER: {
         std::mt19937 engine(0);
-        std::uniform_int_distribution<> dist(0, 1);
+        std::uniform_int_distribution<> dist(rand_min, rand_max);
 
         for (int l = 0; l < nloop; l++) {
             int v = dist(engine);
@@ -231,7 +232,7 @@ static ResultValue run1(const GlobalState *g, int ninst, int nloop,
     } break;
     }
 
-    Loop loop(ninst, 0, 0);
+    Loop loop(ninst, indirect, nindirect_brach_target);
     loop.invoke(&table[0], nloop);
 
     t0 = userland_timer_value::get();
@@ -261,48 +262,69 @@ static ResultValue run1(const GlobalState *g, int ninst, int nloop,
 struct RandomBranch : public BenchDesc {
     GenMethod gm;
     bool use_perf_counter;
+    bool indirect;
 
-    static const char *get_name(GenMethod m, bool use_perf_counter) {
-        if (use_perf_counter) {
-            switch (m) {
-            case GenMethod::FULL:
-                return "full-random-branch-hit";
-            case GenMethod::ITER:
-                return "iter-random-branch-hit";
-            case GenMethod::INST:
-                return "inst-random-branch-hit";
-            case GenMethod::COS:
-                return "cos-branch-hit";
+    static const char *get_name(GenMethod m, bool use_perf_counter,
+                                bool indirect) {
+        if (indirect) {
+            if (use_perf_counter) {
+                return "random-indirect-branch-hit";
+
+            } else {
+                return "random-indirect-branch";
             }
         } else {
-            switch (m) {
-            case GenMethod::FULL:
-                return "full-random-branch";
-            case GenMethod::ITER:
-                return "iter-random-branch";
-            case GenMethod::INST:
-                return "inst-random-branch";
-            case GenMethod::COS:
-                return "cos-branch";
+            if (use_perf_counter) {
+                switch (m) {
+                case GenMethod::FULL:
+                    return "full-random-branch-hit";
+                case GenMethod::ITER:
+                    return "iter-random-branch-hit";
+                case GenMethod::INST:
+                    return "inst-random-branch-hit";
+                case GenMethod::COS:
+                    return "cos-branch-hit";
+                }
+            } else {
+                switch (m) {
+                case GenMethod::FULL:
+                    return "full-random-branch";
+                case GenMethod::ITER:
+                    return "iter-random-branch";
+                case GenMethod::INST:
+                    return "inst-random-branch";
+                case GenMethod::COS:
+                    return "cos-branch";
+                }
             }
         }
         return "";
     }
 
-    RandomBranch(GenMethod m, bool use_perf_counter)
-        : BenchDesc(RandomBranch::get_name(m, use_perf_counter)), gm(m),
-          use_perf_counter(use_perf_counter) {}
+    RandomBranch(GenMethod m, bool use_perf_counter, bool indirect)
+        : BenchDesc(RandomBranch::get_name(m, use_perf_counter, indirect)),
+          gm(m), use_perf_counter(use_perf_counter), indirect(indirect) {}
 
     typedef Table1D<double, std::string> table_t;
 
     virtual result_t run(GlobalState const *g) override {
         table_t *ret;
 
-        std::vector<int> count_table = {16, 32, 64, 128, 256, 512, 1024};
+        std::vector<int> count_table;
+        std::vector<int> target_table;
+
         std::vector<std::string> row_label;
         int row = 0;
 
-        ret = new table_t("table size (inst x nloop)", count_table.size() * 3);
+        if (indirect) {
+            count_table = {4, 16, 32, 64, 128};
+            target_table = {1,2,4};
+        } else {
+            count_table = {16, 32, 64, 128, 256, 512, 1024};
+            target_table = {0};
+        }
+
+        ret = new table_t("table size (inst x nloop)", count_table.size() * target_table.size() * 3);
 
         if (this->use_perf_counter) {
             ret->column_label = "hit-rate[%]";
@@ -310,23 +332,30 @@ struct RandomBranch : public BenchDesc {
             ret->column_label = "nsec/branch";
         }
 
-        for (int i : count_table) {
-            auto add_label = [g, &row_label, ret, &row, this](int i0, int i1) {
-                auto r = run1(g, i0, i1, this->gm);
-                char buf[512];
-                sprintf(buf, "%6d x %6d", i0, i1);
-                row_label.push_back(buf);
+        for (int ti : target_table) {
+            for (int i : count_table) {
+                auto add_label = [g, &row_label, ret, &row, this](int i0, int i1, int ti) {
+                    auto r = run1(g, i0, i1, this->gm, this->indirect, ti);
+                    char buf[512];
+                    if (this->indirect) {
+                        sprintf(buf, "%6d x %6d [nindirect_taregt=%d]", i0, i1, ti);
+                    } else {
+                        sprintf(buf, "%6d x %6d", i0, i1);
+                    }
+                    row_label.push_back(buf);
 
-                if (use_perf_counter) {
-                    (*ret)[row++] = (1.0-(r.branch_miss / ((i0 + 1) * i1)))*100;
-                } else {
-                    (*ret)[row++] = r.nsec / ((i0 + 1) * i1);
-                }
-            };
+                    if (use_perf_counter) {
+                        (*ret)[row++] =
+                            (1.0 - (r.branch_miss / ((i0 + 1) * i1))) * 100;
+                    } else {
+                        (*ret)[row++] = r.nsec / ((i0 + 1) * i1);
+                    }
+                };
 
-            add_label(i / 4, i * 4);
-            add_label(i, i);
-            add_label(i * 4, i / 4);
+                add_label(i / 4, i * 4, ti);
+                add_label(i, i, ti);
+                add_label(i * 4, i / 4, ti);
+            }
         }
 
         ret->row_label = row_label;
@@ -348,29 +377,46 @@ struct RandomBranch : public BenchDesc {
 } // namespace
 
 std::unique_ptr<BenchDesc> get_random_branch_desc() {
-    return std::unique_ptr<BenchDesc>(new RandomBranch(GenMethod::FULL, false));
+    return std::unique_ptr<BenchDesc>(
+        new RandomBranch(GenMethod::FULL, false, false));
 }
 std::unique_ptr<BenchDesc> get_inst_random_branch_desc() {
-    return std::unique_ptr<BenchDesc>(new RandomBranch(GenMethod::INST, false));
+    return std::unique_ptr<BenchDesc>(
+        new RandomBranch(GenMethod::INST, false, false));
 }
 std::unique_ptr<BenchDesc> get_iter_random_branch_desc() {
-    return std::unique_ptr<BenchDesc>(new RandomBranch(GenMethod::ITER, false));
+    return std::unique_ptr<BenchDesc>(
+        new RandomBranch(GenMethod::ITER, false, false));
 }
 std::unique_ptr<BenchDesc> get_cos_branch_desc() {
-    return std::unique_ptr<BenchDesc>(new RandomBranch(GenMethod::COS, false));
+    return std::unique_ptr<BenchDesc>(
+        new RandomBranch(GenMethod::COS, false, false));
 }
 
 std::unique_ptr<BenchDesc> get_random_branch_hit_desc() {
-    return std::unique_ptr<BenchDesc>(new RandomBranch(GenMethod::FULL, true));
+    return std::unique_ptr<BenchDesc>(
+        new RandomBranch(GenMethod::FULL, true, false));
 }
 std::unique_ptr<BenchDesc> get_inst_random_branch_hit_desc() {
-    return std::unique_ptr<BenchDesc>(new RandomBranch(GenMethod::INST, true));
+    return std::unique_ptr<BenchDesc>(
+        new RandomBranch(GenMethod::INST, true, false));
 }
 std::unique_ptr<BenchDesc> get_iter_random_branch_hit_desc() {
-    return std::unique_ptr<BenchDesc>(new RandomBranch(GenMethod::ITER, true));
+    return std::unique_ptr<BenchDesc>(
+        new RandomBranch(GenMethod::ITER, true, false));
 }
 std::unique_ptr<BenchDesc> get_cos_branch_hit_desc() {
-    return std::unique_ptr<BenchDesc>(new RandomBranch(GenMethod::COS, true));
+    return std::unique_ptr<BenchDesc>(
+        new RandomBranch(GenMethod::COS, true, false));
+}
+
+std::unique_ptr<BenchDesc> get_indirect_branch_desc() {
+    return std::unique_ptr<BenchDesc>(
+        new RandomBranch(GenMethod::FULL, false, true));
+}
+std::unique_ptr<BenchDesc> get_indirect_branch_hit_desc() {
+    return std::unique_ptr<BenchDesc>(
+        new RandomBranch(GenMethod::FULL, true, true));
 }
 
 } // namespace smbm
