@@ -30,6 +30,7 @@ add_library(libsys-microbenchmark
   actual-freq.cpp
   ipc.cpp
   branch.cpp
+  instruction.cpp
 
   x86-avx.cpp
   x86-avx512.cpp
