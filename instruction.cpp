@@ -72,6 +72,18 @@ struct rdrand : public no_arg {
 struct vzeroupper : public no_arg {
     void run(void *p) { __asm__ __volatile__("vzeroupper"); }
 };
+struct vzeroupper_with_avxop : public use_1line {
+    void run(void *p) {
+        __asm__ __volatile__(
+            "vmovd %0, %%xmm0\n\t"
+            "vpbroadcastd %%xmm0, %%ymm0\n\t"
+            "vzeroupper"
+            :
+            :"r"(1)
+            :"memory", "ymm0"
+            );
+    }
+};
 struct nop : public no_arg {
     void run(void *p) { __asm__ __volatile__("nop"); }
 };
@@ -91,7 +103,8 @@ static bool T() { return true; }
     F(clflushopt, have_clflushopt)                                             \
     F(clwb, have_clwb)                                      \
     F(rdrand, have_rdrand)                                                     \
-    F(vzeroupper, have_avx)
+    F(vzeroupper, have_avx)                                             \
+    F(vzeroupper_with_avxop, have_avx)
 
 #endif
 
