@@ -128,7 +128,7 @@ struct Instruction : public BenchDesc {
         labels.push_back(#F);                                                  \
     }
 
-        result->column_label = " nsec/call";
+        result->column_label = " nsec/instruction";
         std::vector<std::string> labels;
         FOR_EACH_TEST(NAME);
         result->row_label = labels;
