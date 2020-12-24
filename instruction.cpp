@@ -106,6 +106,10 @@ static bool T() { return true; }
     F(vzeroupper, have_avx)                                             \
     F(vzeroupper_with_avxop, have_avx)
 
+#else
+
+#define FOR_EACH_TEST(F)                        \
+
 #endif
 
 struct Instruction : public BenchDesc {
@@ -144,8 +148,15 @@ struct Instruction : public BenchDesc {
 
         return std::unique_ptr<BenchResult>(result);
     }
-    virtual result_t parse_json_result(picojson::value const &v) {
+    result_t parse_json_result(picojson::value const &v) override {
         return result_t(Table1D<double, std::string>::parse_json_result(v));
+    }
+    bool available(GlobalState const *g) override {
+#ifdef X86
+        return true;
+#else
+        return false;
+#endif
     }
 };
 
