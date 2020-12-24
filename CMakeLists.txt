@@ -31,6 +31,7 @@ add_library(libsys-microbenchmark
   ipc.cpp
   branch.cpp
   instruction.cpp
+  pipe.cpp
 
   x86-avx.cpp
   x86-avx512.cpp
