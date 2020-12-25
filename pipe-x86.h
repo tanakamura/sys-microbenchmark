@@ -21,7 +21,7 @@ static inline void output8(char *&p, uint64_t v) {
     *(p++) = (v >> (8 * 7)) & 0xff;
 }
 
-static void gen_iadd(char *&p, int operand0, int operand1) {
+static inline void gen_iadd(char *&p, int operand0, int operand1) {
     /* add operand[0], operand[1] */
 
     // op0 = reg
@@ -38,7 +38,19 @@ static void gen_iadd(char *&p, int operand0, int operand1) {
     *(p++) = 0xc0 | op0_modrm | op1_modrm;
 }
 
-static void gen_iclear(char *&p, int operand0) {
+static inline void gen_ior(char *&p, int operand0, int operand1) {
+    int op0_r = (operand0 >> 3) << 0;
+    int op1_b = (operand1 >> 3) << 2;
+
+    int op0_modrm = (operand0 & 7) << 3;
+    int op1_modrm = operand1 & 7;
+
+    *(p++) = 0x48 | op0_r | op1_b;
+    *(p++) = 0x0b;
+    *(p++) = 0xc0 | op0_modrm | op1_modrm;
+}
+
+static inline void gen_iclear(char *&p, int operand0) {
     int operand1 = operand0;
 
     int op0_r = (operand0 >> 3) << 0;
@@ -52,7 +64,21 @@ static void gen_iclear(char *&p, int operand0) {
     *(p++) = 0xc0 | op0_modrm | op1_modrm;
 }
 
-static void gen_fadd(char *&p, int operand0, int operand1) {
+static inline void gen_imm0(char *&p, int operand0) {
+    int operand1 = operand0;
+
+    int op0_r = (operand0 >> 3) << 0;
+    int op1_b = (operand1 >> 3) << 2;
+
+    int op0_modrm = (operand0 & 7) << 3;
+    int op1_modrm = operand1 & 7;
+
+    *(p++) = 0x48 | op0_r | op1_b;
+    *(p++) = 0x31;
+    *(p++) = 0xc0 | op0_modrm | op1_modrm;
+}
+
+static inline void gen_fadd(char *&p, int operand0, int operand1) {
     int op0_r = (operand0 >> 3) << 0;
     int op1_b = (operand1 >> 3) << 2;
     int op0_modrm = (operand0 & 7) << 3;
@@ -65,7 +91,22 @@ static void gen_fadd(char *&p, int operand0, int operand1) {
     *(p++) = 0xc0 | op0_modrm | op1_modrm;
 }
 
-static void gen_load64(char *&p, int operand0, int operand1) {
+static inline void gen_int_to_fp(char *&p, int operand0, int operand1) {
+    /* movq */
+    int op0_r = (operand0 >> 3) << 0;
+    int op1_b = (operand1 >> 3) << 2;
+    int op0_modrm = (operand0 & 7) << 3;
+    int op1_modrm = (operand1 & 7);
+
+    *(p++) = 0x66;
+    *(p++) = 0x40 | op0_r | op1_b;
+    *(p++) = 0x0f;
+    *(p++) = 0x6e;
+    *(p++) = 0xc0 | op0_modrm | op1_modrm;
+}
+
+
+static inline void gen_load64(char *&p, int operand0, int operand1) {
     int rex_r = (operand1 >> 3) << 0;
     int rex_b = (operand0 >> 3) << 2;
 
@@ -77,7 +118,11 @@ static void gen_load64(char *&p, int operand0, int operand1) {
     *(p++) = 0x00 | op0_modrm | op1_modrm;
 }
 
-static void gen_setimm64(char *&p, int operand, uint64_t val) {
+static inline void gen_nop(char *&p) {
+    *(p++) = 0x90;
+}
+
+static inline void gen_setimm64(char *&p, int operand, uint64_t val) {
     int rex_r = (operand >> 3);
     *(p++) = 0x48 | rex_r;
     *(p++) = 0xb8 | (operand & 7);
@@ -134,7 +179,36 @@ static void enter_frame(char *&p, TI callee_save_int, TF callee_save_fp) {
     }
 }
 
-static void exit_frame(char *&p) {
+template <typename TI, typename TF>
+void exit_frame(char *&p, TI callee_save_int, TF callee_save_fp) {
+    int cur = 16;
+
+    for (auto x : callee_save_fp) {
+        int rex_r = (x >> 3) << 2;
+        int r = x & 7;
+
+        *(p++) = 0x40 | rex_r;
+        *(p++) = 0x0f;
+        *(p++) = 0x28;
+        *(p++) = 0x85 | (r << 3);
+        output4(p, -cur);
+
+        cur += 16;
+    }
+
+    for (auto x : callee_save_int) {
+        int rex_r = (x >> 3) << 2;
+        int r = x & 7;
+
+        *(p++) = 0x48 | rex_r;
+        *(p++) = 0x8b;
+        *(p++) = 0x85 | (r << 3);
+        output4(p, -cur);
+
+        cur += 8;
+    }
+
+
     /* mov rsp, rbp */
     *(p++) = 0x48;
     *(p++) = 0x89;
@@ -181,6 +255,12 @@ static auto constexpr callee_saved_fp_regs = {6,  7,  8,  9,  10,
 // R11, RDI, RSI};
 
 static auto constexpr callee_saved_int_regs = {RBX, R14, R15};
+
+static std::vector<int> const simple_regs = {
+    0, 1,2, 3,
+    6,7,
+    8,9,10,11,
+    14,15};
 
 //static auto constexpr caller_saved_fp_regs = {0, 1, 2,  3,  4,  5,  6,  7,
 //                                              8, 9, 10, 11, 12, 13, 14, 15};
