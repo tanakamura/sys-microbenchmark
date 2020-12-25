@@ -3,11 +3,10 @@
 #include "table.h"
 #include "thread.h"
 #include "oneshot_timer.h"
+#include "cpu-feature.h"
 
 namespace smbm {
 namespace {
-
-#define CACHELINE_SIZE 64
 
 struct __attribute__((aligned(CACHELINE_SIZE))) Shared {
     int to_p0;

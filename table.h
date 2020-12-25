@@ -223,7 +223,7 @@ void dump2d(std::ostream &out, Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *t, bool 
 
     out << '\n';
 
-    insert_char_n(out, '=', row_width);
+    insert_char_n(out, '-', row_width);
     out << '\n';
 
     for (int i = 0; i < t->d1; i++) {
@@ -279,7 +279,7 @@ void dump1d(std::ostream &out, Table1D<T, LT> *t, int double_precision) {
 
     out << '\n';
 
-    insert_char_n(out, '=', row_width);
+    insert_char_n(out, '-', row_width);
     out << '\n';
 
     for (int i = 0; i < t->d0; i++) {

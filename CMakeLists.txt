@@ -44,7 +44,7 @@ add_library(libsys-microbenchmark
   )
 
 add_custom_command(OUTPUT ${HWLOC_LIB_DIR}/libhwloc_embedded.a
-  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/build-hwloc.sh ${BUILD_HWLOC_CONF_ARGS})
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/build-hwloc.sh ${CMAKE_CURRENT_SOURCE_DIR}/hwloc ${BUILD_HWLOC_CONF_ARGS})
 
 add_custom_target(hwloc
   SOURCES ${HWLOC_LIB_DIR}/libhwloc_embedded.a

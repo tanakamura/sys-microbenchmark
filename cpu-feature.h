@@ -4,6 +4,8 @@
 
 namespace smbm {
 
+static constexpr int CACHELINE_SIZE = 64;
+
 #ifdef X86
 bool have_avx();
 bool have_avx2();
