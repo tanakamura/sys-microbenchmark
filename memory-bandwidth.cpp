@@ -560,8 +560,12 @@ struct CacheBandwidth : public BenchDesc {
 
         std::vector<int> size_set;
 
-        for (size_t s=start; s<=max; s*=2) {
-            size_set.push_back(s);
+        for (double s=start; s<=max; s=s*1.2) {
+            int is = s;
+            is = (is+1024) & ~1023;
+            s = is;
+
+            size_set.push_back(is);
         }
 
         int nthread = 1;
