@@ -17,7 +17,6 @@
 
 #define HAVE_HWLOC
 #define HAVE_HW_PERF_COUNTER
-#define HAVE_CLOCK_GETTIME
 #define HAVE_GNU_CPU_SET
 
 #define POSIX
@@ -45,16 +44,27 @@
 
 #ifdef POSIX
 #define HAVE_THREAD
+#define HAVE_CLOCK_GETTIME
 #endif
 
 
 #ifdef X86
 #define yield_thread() _mm_pause()
 #define HAVE_YIELD_INSTRCUTION
+#define HAVE_DYNAMIC_CODE_GENERATOR
 #else
 #define yield_thread() 
 #endif
 
+#ifdef __wasi__
+#define HAVE_CLOCK_GETTIME
+#else
+
+#ifdef EMSCRIPTEN
+#define BAREMETAL
+#endif
+
+#endif
 
 namespace smbm {
 typedef uint64_t vec128i __attribute__((vector_size(16)));

@@ -1,4 +1,3 @@
-#include <atomic>
 #include "sys-microbenchmark.h"
 #include "table.h"
 #include "thread.h"
@@ -11,7 +10,7 @@ namespace {
 struct __attribute__((aligned(CACHELINE_SIZE))) Shared {
     int to_p0;
     int to_p1;
-    std::atomic<int> barrier;
+    atomic_int_t barrier;
 };
 
 struct ThreadInfo {

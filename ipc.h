@@ -93,7 +93,18 @@ void write_pipe(Pipe *p, char x) {
 
 
 #else
-#error "pipe"
+
+struct Pipe {
+};
+
+char read_pipe(Pipe *p) {
+    abort();
+}
+
+void write_pipe(Pipe *p, char x) {
+    abort();
+}
+
 #endif
 
 };

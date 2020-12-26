@@ -81,7 +81,7 @@ FOR_EACH_BENCHMARK_LIST(DEFINE_ENTRY)
 #define REP8(A) A A A A A A A A
 #define REP16(A) REP8(A) REP8(A)
 
-#ifdef POSIX
+#ifdef HAVE_CLOCK_GETTIME
 
 inline uint64_t delta_timespec(struct timespec const *l,
                                struct timespec const *r) {
@@ -145,6 +145,31 @@ struct ostimer_value {
     static const char *name() { return "QueryPerformanceCounter"; }
 };
 
+#elif (defined EMSCRIPTEN)
+
+extern "C" double get_js_tick();
+
+struct ostimer_value {
+    double v;
+
+    bool operator >= (ostimer_value const &r) const {
+        return this->v >= r.v;
+    }
+
+    uint64_t operator - (ostimer_value const &r) const {
+        return (uint64_t)(((this->v - r.v) * 1000.0) + 0.5);
+    }
+
+    static ostimer_value get() {
+        double v = get_js_tick();
+        ostimer_value ret;
+        ret.v = v;
+        return ret;
+    }
+
+    static const char *name() { return "w3c_Performance.now"; }
+};
+
 #else
 #error "ostimer"
 #endif
@@ -181,6 +206,8 @@ struct userland_timer_value {
 
 #else
 
+#define USE_OSTIMER_AS_USERLAND_TIMER
+
     struct ostimer_value v;
 
     bool operator>=(struct userland_timer_value const &r) const {
@@ -196,8 +223,7 @@ struct userland_timer_value {
         return ret;
     }
 
-    static const char *name = "ostimer";
-
+    static const char *name() { return "ostimer"; };
 #endif
 };
 
@@ -247,7 +273,7 @@ struct GlobalState {
     perf_counter_value_t get_hw_cache_miss() const;
 #endif
 
-#ifdef POSIX
+#ifdef HAVE_CLOCK_GETTIME
     /* timespec hold ns value */
     static constexpr double ostimer_freq = 1e9;
 #endif
@@ -256,8 +282,13 @@ struct GlobalState {
     double ostimer_freq;
 #endif
 
-    double ostimer_delta_to_sec(uint64_t delta) { return delta / ostimer_freq; }
-    uint64_t sec_to_ostimer_delta(double sec) {
+#ifdef EMSCRIPTEN
+    /* usec */
+    static constexpr double ostimer_freq = 1e6;
+#endif
+
+    double ostimer_delta_to_sec(uint64_t delta) const { return delta / ostimer_freq; }
+    uint64_t sec_to_ostimer_delta(double sec) const {
         return (uint64_t)((sec * ostimer_freq) + 0.5);
     }
 };

@@ -1,0 +1,16 @@
+set(CMAKE_SYSTEM_NAME Wasi)
+set(CMAKE_SYSTEM_PROCESSOR wasm32)
+
+set(triple wasm32-wasi)
+set(CMAKE_C_COMPILER clang --sysroot=/opt/wasi-sdk/wasi-sysroot)
+set(CMAKE_C_COMPILER_TARGET ${triple})
+set(CMAKE_CXX_COMPILER clang --sysroot=/opt/wasi-sdk/wasi-sysroot)
+set(CMAKE_CXX_COMPILER_TARGET ${triple})
+
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lstdc++" CACHE STRING "")
+
+
+#set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+#set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+#set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+#set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)

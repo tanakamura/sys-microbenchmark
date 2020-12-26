@@ -12,7 +12,7 @@
 
 namespace smbm {
 
-#ifdef POSIX
+#if (defined POSIX) || (defined __wasi__) || (defined EMSCRIPTEN)
 inline void *aligned_calloc(size_t align, size_t size) {
     void *p = 0;
     posix_memalign(&p, align, size);
@@ -24,6 +24,7 @@ inline void aligned_free(void *p) {
     free(p);
 }
 
+#ifdef POSIX
 struct ExecutableMemory {
     void *p;
     size_t mapped_size;
@@ -50,6 +51,7 @@ inline ExecutableMemory alloc_exeutable(size_t sz) {
 inline void free_executable(ExecutableMemory const *m) {
     munmap(m->p, m->mapped_size);
 }
+#endif
 
 #elif defined WINDOWS
 inline void *aligned_calloc(size_t align, size_t size) {

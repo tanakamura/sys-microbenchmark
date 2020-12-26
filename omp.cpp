@@ -1,10 +1,14 @@
+
 #include "cpuset.h"
 #include "oneshot_timer.h"
 #include "simple-run.h"
 #include "sys-microbenchmark.h"
 #include "table.h"
-#include <unistd.h>
+
+#ifdef _OPENMP
 #include <omp.h>
+#include <unistd.h>
+#endif
 
 namespace smbm {
 
@@ -16,19 +20,11 @@ struct no_arg {
     void free_arg(void *p) {}
 };
 
-struct omp_get_thread_num1
-    :public no_arg
-{
-    void run(void *arg) {
-        omp_get_thread_num();
-    }
+struct omp_get_thread_num1 : public no_arg {
+    void run(void *arg) { omp_get_thread_num(); }
 };
-struct omp_get_num_threads1
-    :public no_arg
-{
-    void run(void *arg) {
-        omp_get_num_threads();
-    }
+struct omp_get_num_threads1 : public no_arg {
+    void run(void *arg) { omp_get_num_threads(); }
 };
 
 struct parallel : public no_arg {
@@ -44,7 +40,7 @@ struct parallel_for_nthread : public no_arg {
         int nthread = omp_get_num_threads();
 
 #pragma omp parallel for
-        for (int i=0; i<nthread; i++) {
+        for (int i = 0; i < nthread; i++) {
             asm volatile(" " ::: "memory");
         }
     }
@@ -54,7 +50,7 @@ struct parallel_for_64K : public no_arg {
     void run(void *arg) {
 
 #pragma omp parallel for
-        for (int i=0; i<65536; i++) {
+        for (int i = 0; i < 65536; i++) {
             asm volatile(" " ::: "memory");
         }
     }
@@ -64,7 +60,7 @@ struct parallel_for_1M : public no_arg {
     void run(void *arg) {
 
 #pragma omp parallel for
-        for (int i=0; i<1048576; i++) {
+        for (int i = 0; i < 1048576; i++) {
             asm volatile(" " ::: "memory");
         }
     }
@@ -72,7 +68,7 @@ struct parallel_for_1M : public no_arg {
 
 struct parallel_task_spawn : public no_arg {
     void run(void *arg) {
-        
+
 #pragma omp parallel
         {
             if (omp_get_thread_num() == 0) {
@@ -90,7 +86,7 @@ struct parallel_task_spawn_1K : public no_arg {
 #pragma omp parallel
         {
             if (omp_get_thread_num() == 0) {
-                for (int i=0; i<1024; i++) {
+                for (int i = 0; i < 1024; i++) {
 #pragma omp task
                     asm volatile(" " ::: "memory");
                 }
@@ -121,7 +117,7 @@ struct parallel_barrier_1K : public no_arg {
         {
             asm volatile(" " ::: "memory");
 
-            for (int i=0; i<1024; i++) {
+            for (int i = 0; i < 1024; i++) {
 #pragma omp barrier
                 asm volatile(" " ::: "memory");
             }
@@ -131,21 +127,20 @@ struct parallel_barrier_1K : public no_arg {
     }
 };
 
-
 } // namespace
 
 #define FOR_EACH_TEST(F)                                                       \
     /*F(nop)*/                                                                 \
-    F(omp_get_thread_num1)                                                         \
-    F(omp_get_num_threads1)                                              \
-    F(parallel)                                                         \
-    F(parallel_for_nthread)                                             \
-    F(parallel_for_64K)                                             \
-    F(parallel_for_1M)                                             \
-    F(parallel_task_spawn)                                             \
-    F(parallel_task_spawn_1K)                                         \
-    F(parallel_barrier)                                         \
-    F(parallel_barrier_1K)                                         \
+    F(omp_get_thread_num1)                                                     \
+    F(omp_get_num_threads1)                                                    \
+    F(parallel)                                                                \
+    F(parallel_for_nthread)                                                    \
+    F(parallel_for_64K)                                                        \
+    F(parallel_for_1M)                                                         \
+    F(parallel_task_spawn)                                                     \
+    F(parallel_task_spawn_1K)                                                  \
+    F(parallel_barrier)                                                        \
+    F(parallel_barrier_1K)
 
 struct OpenMP : public BenchDesc {
     OpenMP() : BenchDesc("OpenMP") {}
@@ -195,4 +190,6 @@ std::unique_ptr<BenchDesc> get_openmp_desc() {
 
 #endif
 
+
 } // namespace smbm
+

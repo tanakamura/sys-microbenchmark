@@ -96,6 +96,8 @@ extern "C" {
 }
 #endif
 
+#define PICOJSON_ASSERT(e)
+
 #ifndef PICOJSON_ASSERT
 #define PICOJSON_ASSERT(e)                                                                                                         \
   do {                                                                                                                             \
@@ -252,7 +254,8 @@ inline value::value(double n) : type_(number_type), u_() {
       isnan(n) || isinf(n)
 #endif
           ) {
-    throw std::overflow_error("");
+      //throw std::overflow_error("");
+      abort();
   }
   u_.number_ = n;
 }

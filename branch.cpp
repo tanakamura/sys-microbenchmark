@@ -8,6 +8,8 @@
 
 namespace smbm {
 
+#ifdef HAVE_DYNAMIC_CODE_GENERATOR
+
 namespace {
 
 static inline void output4(char *&p, uint32_t v) {
@@ -418,5 +420,42 @@ std::unique_ptr<BenchDesc> get_indirect_branch_hit_desc() {
     return std::unique_ptr<BenchDesc>(
         new RandomBranch(GenMethod::FULL, true, true));
 }
+
+#else
+std::unique_ptr<BenchDesc> get_random_branch_desc() {
+    return std::unique_ptr<BenchDesc>();
+}
+std::unique_ptr<BenchDesc> get_inst_random_branch_desc() {
+    return std::unique_ptr<BenchDesc>();
+}
+std::unique_ptr<BenchDesc> get_iter_random_branch_desc() {
+    return std::unique_ptr<BenchDesc>();
+}
+std::unique_ptr<BenchDesc> get_cos_branch_desc() {
+    return std::unique_ptr<BenchDesc>();
+}
+
+std::unique_ptr<BenchDesc> get_random_branch_hit_desc() {
+    return std::unique_ptr<BenchDesc>();
+}
+std::unique_ptr<BenchDesc> get_inst_random_branch_hit_desc() {
+    return std::unique_ptr<BenchDesc>();
+}
+std::unique_ptr<BenchDesc> get_iter_random_branch_hit_desc() {
+    return std::unique_ptr<BenchDesc>();
+}
+std::unique_ptr<BenchDesc> get_cos_branch_hit_desc() {
+    return std::unique_ptr<BenchDesc>();
+}
+
+std::unique_ptr<BenchDesc> get_indirect_branch_desc() {
+    return std::unique_ptr<BenchDesc>();
+}
+std::unique_ptr<BenchDesc> get_indirect_branch_hit_desc() {
+    return std::unique_ptr<BenchDesc>();
+}
+
+
+#endif
 
 } // namespace smbm

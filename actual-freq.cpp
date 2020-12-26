@@ -3,7 +3,6 @@
 #include "barrier.h"
 #include "oneshot_timer.h"
 #include "cpuset.h"
-#include <atomic>
 #include "thread.h"
 #include "cpu-feature.h"
 #include "x86funcs.h"
@@ -25,7 +24,7 @@ struct ThreadInfo {
 
     GlobalState const *g;
     int tid;
-    std::atomic<int> *start_barrier;
+    atomic_int_t *start_barrier;
     int total_thread_num;
     double delay;
 
@@ -202,7 +201,7 @@ struct ActualFreq
         result_table->row_label = std::move(row_label);
         result_table->column_label = threads;
 
-        std::atomic<int> start_barrier;
+        atomic_int_t start_barrier;
         std::vector<ThreadInfo> thread_info_list(use_thread);
 
         for (int i=0; i<use_thread; i++) {

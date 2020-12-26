@@ -8,6 +8,9 @@
 
 namespace smbm {
 
+#define compiler_mb() __asm__ __volatile__ ("":::"memory");
+
+
 #ifdef X86
     static inline void rmb() {
         _mm_lfence();
@@ -23,9 +26,13 @@ namespace smbm {
         __asm__ __volatile__ ("dmb st" ::: "memory");
     }
 
-
+#elif ! defined HAVE_THREAD
+    static inline void rmb() {
+        compiler_mb();
+    }
+    static inline void wmb() {
+        compiler_mb();
+    }
 #endif
-
-#define compiler_mb() __asm__ __volatile__ ("":::"memory");
 
 }

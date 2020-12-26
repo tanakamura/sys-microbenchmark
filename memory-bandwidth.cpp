@@ -7,7 +7,6 @@
 #include "table.h"
 #include "thread.h"
 #include "x86funcs.h"
-#include <atomic>
 
 namespace smbm {
 
@@ -105,8 +104,8 @@ struct ThreadInfo {
 
     memop com;
     fn_union fn;
-    std::atomic<int> *start_barrier;
-    std::atomic<int> *end_barrier;
+    atomic_int_t *start_barrier;
+    atomic_int_t *end_barrier;
 
     size_t total_transfer;
 
@@ -294,8 +293,8 @@ static ThreadInfo *init_threads(const GlobalState *g, int start_proc, int num_th
                                 double duration_sec, size_t buffer_size) {
     ThreadInfo *t = new ThreadInfo[num_thread];
 
-    std::atomic<int> *start_barrier = new std::atomic<int>;
-    std::atomic<int> *end_barrier = new std::atomic<int>;
+    atomic_int_t *start_barrier = new atomic_int_t;
+    atomic_int_t *end_barrier = new atomic_int_t;
 
     for (int i = 0; i < num_thread; i++) {
         t[i].start_barrier = start_barrier;
@@ -501,7 +500,7 @@ struct CacheBandwidth : public BenchDesc {
     }
 
 
-    virtual result_t parse_json_result(picojson::value const &v) {
+    virtual result_t parse_json_result(picojson::value const &v) override {
         return result_t(table_t::parse_json_result(v));
     }
 };

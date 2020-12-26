@@ -3,14 +3,17 @@
 #include "table.h"
 #include "simple-run.h"
 
-#ifdef POSIX
+#if (defined POSIX) || (defined __wasi__)
 #include <fcntl.h>
-#include <pthread.h>
-#include <sys/mman.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#endif
+
+#ifdef POSIX
+#include <sys/mman.h>
+#include <pthread.h>
+#include <sys/wait.h>
 #endif
 
 #ifdef WINDOWS
@@ -19,6 +22,8 @@
 
 
 namespace smbm {
+
+#ifndef BAREMETAL
 
 namespace {
 
@@ -59,23 +64,29 @@ struct open_close : public no_arg {
     }
 };
 
+#ifdef WINDOWS
 struct pipe_close : public no_arg {
     void run(void *arg) {
-#ifdef WINDOWS
         HANDLE read_pipe;
         HANDLE write_pipe;
         CreatePipe(&read_pipe, &write_pipe, NULL,0);
         CloseHandle(read_pipe);
         CloseHandle(write_pipe);
-#else
+    }
+};
+#elif defined POSIX
+struct pipe_close : public no_arg {
+    void run(void *arg) {
         int fd[2];
         pipe(fd);
         close(fd[0]);
         close(fd[1]);
-#endif
     }
 };
+#endif
 
+
+#ifdef POSIX
 struct select_0 : public no_arg {
     void run(void *arg) {
         fd_set rd, wr, except;
@@ -97,7 +108,6 @@ struct select_0 : public no_arg {
     }
 };
 
-#ifdef POSIX
 struct fork_wait : public no_arg {
     void run(void *arg) __attribute__((noinline)) {
         pid_t c;
@@ -140,7 +150,7 @@ struct mmap_unmap : public no_arg {
         UnmapViewOfFile(p);
     }
 };
-#else
+#elif defined POSIX
 struct mmap_unmap : public no_arg {
     void run(void *arg) {
 
@@ -181,7 +191,7 @@ struct write_devnull_1byte {
         }
     }
 };
-#else
+#elif defined POSIX
 struct write_devnull_1byte {
     int alloc_arg() {
         int ret;
@@ -218,7 +228,7 @@ struct thread_create_join : public no_arg {
         HANDLE ret = (HANDLE)_beginthreadex(NULL, 0, (unsigned __stdcall (*)(void*))thread_func, arg, 0, &threadID);
         WaitForSingleObject(ret, INFINITE);
         CloseHandle(ret);
-#else
+#elif defined POSIX
         pthread_t t;
         int r = pthread_create(&t, NULL, thread_func, nullptr);
         if (r != 0) {
@@ -353,10 +363,6 @@ struct GetFileSize1
     /*F(nop)*/                                                                 \
     F(close_invalid)                                                            \
     F(open_close)                                                              \
-    F(pipe_close)                                                              \
-    F(mmap_unmap)                                                              \
-    F(write_devnull_1byte)                                                     \
-    F(thread_create_join)                                              \
 
 
 #define FOR_EACH_TEST_POSIX(F)                                          \
@@ -366,13 +372,22 @@ struct GetFileSize1
     F(clock_gettime1)                                                   \
     F(stat1)                                                            \
     F(fstat1)                                                            \
+    F(pipe_close)                                                              \
+    F(mmap_unmap)                                                              \
+    F(thread_create_join)                                              \
+    F(write_devnull_1byte)                                                     \
+
 
 #define FOR_EACH_TEST_WINDOWS(F)                \
     F(QueryPerformanceCounter1)                  \
     F(create_destroy_window)                    \
     F(PeekMessage1)                    \
     F(GetFileAttributes1)              \
-    F(GetFileSize1)
+    F(GetFileSize1)                                                     \
+    F(pipe_close)                                                              \
+    F(mmap_unmap)                                                              \
+    F(thread_create_join)                                              \
+    F(write_devnull_1byte)                                                     \
 
 #ifdef POSIX
 #define FOR_EACH_TEST(F)                        \
@@ -421,7 +436,7 @@ struct Syscall : public BenchDesc {
 
         return std::unique_ptr<BenchResult>(result);
     }
-    virtual result_t parse_json_result(picojson::value const &v) {
+    virtual result_t parse_json_result(picojson::value const &v) override {
         return result_t(Table1D<double, std::string>::parse_json_result(v));
     }
 };
@@ -429,5 +444,13 @@ struct Syscall : public BenchDesc {
 std::unique_ptr<BenchDesc> get_syscall_desc() {
     return std::unique_ptr<BenchDesc>(new Syscall());
 }
+
+#else  // BAREMETAL
+
+std::unique_ptr<BenchDesc> get_syscall_desc() {
+    return std::unique_ptr<BenchDesc>();
+}
+
+#endif
 
 } // namespace smbm

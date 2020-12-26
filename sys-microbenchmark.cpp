@@ -7,6 +7,10 @@
 #include <sys/syscall.h>
 #endif
 
+#ifdef EMSCRIPTEN
+#include <emscripten.h>
+#endif
+
 #include <math.h>
 #include <string.h>
 #include <unistd.h>
@@ -139,6 +143,8 @@ double GlobalState::userland_timer_delta_to_sec(uint64_t delta) const {
     return delta / this->userland_cpucounter_freq;
 #elif defined HAVE_CLOCK_GETTIME
     return delta / 1e9;
+#elif defined USE_OSTIMER_AS_USERLAND_TIMER
+    return ostimer_delta_to_sec(delta);
 #else
 #error "xx"
 #endif
@@ -164,6 +170,12 @@ GlobalState::inc_sec_userland_timer(userland_timer_value const *t0,
     t1.v.tv.tv_sec = isec;
     t1.v.tv.tv_nsec = insec;
     return t1;
+#elif defined EMSCRIPTEN
+
+    userland_timer_value t1;
+    t1.v.v = t0->v.v + GlobalState::ostimer_freq;
+    return t1;
+
 #else
 #error "xx"
 #endif
@@ -222,5 +234,15 @@ void warmup_thread(const GlobalState *g) {
         counter++;
     }
 }
+
+#ifdef EMSCRIPTEN
+
+EM_JS(double, get_js_tick, (), {
+        return performance.now();
+    }
+    );
+
+
+#endif
 
 } // namespace smbm

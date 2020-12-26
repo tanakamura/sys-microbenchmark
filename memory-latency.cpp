@@ -83,7 +83,7 @@ struct MemoryLatency : public BenchDesc {
         return result_t(result);
     }
 
-    virtual result_t parse_json_result(picojson::value const &v) {
+    result_t parse_json_result(picojson::value const &v) override {
         return result_t(table_t::parse_json_result(v));
     }
 };

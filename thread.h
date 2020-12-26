@@ -2,7 +2,10 @@
 
 #include "cpuset.h"
 #include "barrier.h"
+
+#ifdef HAVE_THREAD
 #include <atomic>
+#endif
 
 #ifdef WINDOWS
 #include <process.h>
@@ -11,6 +14,8 @@
 namespace smbm {
 
 #ifdef HAVE_THREAD
+
+typedef std::atomic<int> atomic_int_t;
 
 #ifdef WINDOWS
 
@@ -46,6 +51,7 @@ inline void wait_thread(thread_handle_t t) {
 #else
 
 typedef int thread_handle_t;
+typedef int atomic_int_t;
 
 inline thread_handle_t spawn_thread(void *(*start_routine)(void*), void *arg) {
     abort();
@@ -59,7 +65,7 @@ inline void wait_thread(thread_handle_t t) {
 #endif
 
 
-inline void wait_barrier(std::atomic<int> *p, int wait_count) {
+inline void wait_barrier(atomic_int_t *p, int wait_count) {
     wmb();
     (*p) += 1;
 

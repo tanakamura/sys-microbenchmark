@@ -8,10 +8,6 @@
 #include <limits.h>
 #include <random>
 
-namespace smbm {
-namespace {} // namespace
-} // namespace smbm
-
 #ifdef X86
 #include "pipe-x86.h"
 #else
@@ -19,6 +15,8 @@ namespace {} // namespace
 #endif
 
 namespace smbm {
+
+#ifdef HAVE_DYNAMIC_CODE_GENERATOR
 
 namespace {
 
@@ -478,5 +476,13 @@ struct Pipe : public BenchDesc {
 std::unique_ptr<BenchDesc> get_pipe_desc() {
     return std::unique_ptr<BenchDesc>(new Pipe());
 }
+
+#else
+
+std::unique_ptr<BenchDesc> get_pipe_desc() {
+    return std::unique_ptr<BenchDesc>();
+}
+
+#endif
 
 } // namespace smbm
