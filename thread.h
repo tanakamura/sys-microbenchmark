@@ -10,6 +10,8 @@
 
 namespace smbm {
 
+#ifdef HAVE_THREAD
+
 #ifdef WINDOWS
 
 typedef HANDLE thread_handle_t;
@@ -38,7 +40,22 @@ inline void wait_thread(thread_handle_t t) {
     pthread_join(t, NULL);
 }
 #else
-#error "spawn_thread_on_proc"
+#error "thread is not implemented"
+#endif
+
+#else
+
+typedef int thread_handle_t;
+
+inline thread_handle_t spawn_thread(void *(*start_routine)(void*), void *arg) {
+    abort();
+}
+
+inline void wait_thread(thread_handle_t t) {
+    abort();
+}
+
+
 #endif
 
 

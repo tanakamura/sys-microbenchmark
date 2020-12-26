@@ -6,6 +6,8 @@
 
 namespace smbm {
 
+#ifdef HAVE_THREAD
+
 #ifdef HAVE_HWLOC
 
 namespace {
@@ -123,7 +125,7 @@ ProcessorTable::ProcessorTable() {
 
     croot->map_before([this](count_node &n) {
         if (n.children.size() == 0) {
-            if (hwloc_bitmap_intersects(this->startup_set,n.obj->cpuset)) {
+            if (hwloc_bitmap_intersects(this->startup_set, n.obj->cpuset)) {
                 this->table[PROC_ORDER_INNER_TO_OUTER].emplace_back(n.obj);
             }
         }
@@ -134,13 +136,12 @@ ProcessorTable::ProcessorTable() {
 
     while (!croot->finished) {
         hwloc_obj_t leaf = croot->get_current_leaf();
-        if (hwloc_bitmap_intersects(this->startup_set,leaf->cpuset)) {
+        if (hwloc_bitmap_intersects(this->startup_set, leaf->cpuset)) {
             this->table[PROC_ORDER_OUTER_TO_INNER].emplace_back(leaf);
         }
-        
+
         croot->inc();
     }
-
 }
 
 ProcessorTable::~ProcessorTable() {
@@ -150,7 +151,8 @@ ProcessorTable::~ProcessorTable() {
 
 void bind_self_to_1proc(std::unique_ptr<ProcessorTable> const &tbl,
                         ProcessorIndex idx, bool membind) {
-    int r = hwloc_set_cpubind(tbl->topo, idx.pu_obj->cpuset, HWLOC_CPUBIND_THREAD);
+    int r =
+        hwloc_set_cpubind(tbl->topo, idx.pu_obj->cpuset, HWLOC_CPUBIND_THREAD);
     if (r < 0) {
         perror("set_cpubind");
         exit(1);
@@ -167,12 +169,14 @@ void bind_self_to_1proc(std::unique_ptr<ProcessorTable> const &tbl,
 
 void bind_self_to_first(std::unique_ptr<ProcessorTable> const &tbl,
                         bool membind) {
-    ProcessorIndex idx = tbl->logical_index_to_processor(0, PROC_ORDER_OUTER_TO_INNER);
+    ProcessorIndex idx =
+        tbl->logical_index_to_processor(0, PROC_ORDER_OUTER_TO_INNER);
     bind_self_to_1proc(tbl, idx, membind);
 }
 
 void bind_self_to_all(std::unique_ptr<ProcessorTable> const &tbl) {
-    int r = hwloc_set_cpubind(tbl->topo, tbl->startup_set, HWLOC_CPUBIND_THREAD|HWLOC_CPUBIND_NOMEMBIND);
+    int r = hwloc_set_cpubind(tbl->topo, tbl->startup_set,
+                              HWLOC_CPUBIND_THREAD | HWLOC_CPUBIND_NOMEMBIND);
     if (r < 0) {
         perror("set_cpubind");
         exit(1);
@@ -181,6 +185,10 @@ void bind_self_to_all(std::unique_ptr<ProcessorTable> const &tbl) {
 
 #else
 #error "affinity"
+#endif
+
+#else
+
 #endif
 
 } // namespace smbm

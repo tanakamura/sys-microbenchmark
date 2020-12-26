@@ -8,6 +8,8 @@
 
 namespace smbm {
 
+#ifdef _OPENMP
+
 namespace {
 struct no_arg {
     void *alloc_arg() { return nullptr; };
@@ -184,5 +186,13 @@ struct OpenMP : public BenchDesc {
 std::unique_ptr<BenchDesc> get_openmp_desc() {
     return std::unique_ptr<BenchDesc>(new OpenMP());
 }
+
+#else
+
+std::unique_ptr<BenchDesc> get_openmp_desc() {
+    return std::unique_ptr<BenchDesc>();
+}
+
+#endif
 
 } // namespace smbm

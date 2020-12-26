@@ -109,6 +109,9 @@ struct ThreadInfo {
     std::atomic<int> *end_barrier;
 
     size_t total_transfer;
+
+    void *src;
+    void *dst;
 };
 
 static inline void invoke_memory_func(ThreadInfo *ti, void *dst, void *src) {
@@ -132,56 +135,84 @@ static inline void invoke_memory_func(ThreadInfo *ti, void *dst, void *src) {
     }
 }
 
-static void *mem_thread(void *p) {
-    ThreadInfo *ti = (ThreadInfo *)p;
 
-    {
-        ProcessorIndex idx = ti->g->proc_table->logical_index_to_processor(ti->self_cpu, PROC_ORDER_OUTER_TO_INNER);
-        bind_self_to_1proc(ti->g->proc_table,
-                           idx,
-                           true);
+static bool
+run_mem_func(ThreadInfo *ti)
+{
+    if (ti->self_cpu != 0) {
+        read_pipe(&ti->notify_to_copy_thread);
     }
 
-    void *src = aligned_calloc(64, ti->buffer_size);
-    void *dst = aligned_calloc(64, ti->buffer_size);
+    if (ti->com == memop::QUIT) {
+        return false;
+    }
 
-    warmup_thread(ti->g);
+    invoke_memory_func(ti, ti->dst, ti->src);
 
-    while (1) {
-        read_pipe(&ti->notify_to_copy_thread);
+    wait_barrier(ti->start_barrier, ti->total_thread_num);
 
-        if (ti->com == memop::QUIT) {
-            break;
-        }
+    auto t0 = userland_timer_value::get();
 
-        invoke_memory_func(ti, dst, src);
+    oneshot_timer ot(16);
+    uint64_t call_count = 0;
 
-        wait_barrier(ti->start_barrier, ti->total_thread_num);
+    ot.start(ti->g, ti->duration_sec);
 
-        auto t0 = userland_timer_value::get();
+    while (!ot.test_end()) {
+        invoke_memory_func(ti, ti->dst, ti->src);
 
-        oneshot_timer ot(16);
-        uint64_t call_count = 0;
+        call_count++;
+    }
 
-        ot.start(ti->g, ti->duration_sec);
+    wait_barrier(ti->end_barrier, ti->total_thread_num);
+    auto t1 = userland_timer_value::get();
 
-        while (!ot.test_end()) {
-            invoke_memory_func(ti, dst, src);
+    ti->actual_sec = ti->g->userland_timer_delta_to_sec(t1 - t0);
+    ti->total_transfer = call_count * ti->buffer_size;
 
-            call_count++;
-        }
-
-        wait_barrier(ti->end_barrier, ti->total_thread_num);
-        auto t1 = userland_timer_value::get();
-
-        ti->actual_sec = ti->g->userland_timer_delta_to_sec(t1 - t0);
-        ti->total_transfer = call_count * ti->buffer_size;
-
+    if (ti->self_cpu != 0){
         write_pipe(&ti->notify_from_copy_thread, 0);
     }
 
-    aligned_free(src);
-    aligned_free(dst);
+    return true;
+}
+
+
+static void
+setup_thread(ThreadInfo *ti)
+{
+    ProcessorIndex idx = ti->g->proc_table->logical_index_to_processor(ti->self_cpu, PROC_ORDER_OUTER_TO_INNER);
+    bind_self_to_1proc(ti->g->proc_table,
+                       idx,
+                       true);
+
+    ti->src = aligned_calloc(64, ti->buffer_size);
+    ti->dst = aligned_calloc(64, ti->buffer_size);
+
+    if (ti->self_cpu != 0) {
+        warmup_thread(ti->g);
+    }
+}
+
+static void
+finish_thread(ThreadInfo *ti)
+{
+    aligned_free(ti->src);
+    aligned_free(ti->dst);
+}
+
+static void *mem_thread(void *p) {
+    ThreadInfo *ti = (ThreadInfo *)p;
+
+    setup_thread(ti);
+
+    while (1) {
+        if (run_mem_func(ti) == false) {
+            break;
+        }
+    }
+
+    finish_thread(ti);
 
     return nullptr;
 }
@@ -234,23 +265,26 @@ static const LoadTest load_tests[] = {
 
 };
 
-static double run1(ThreadInfo *t, int num_thread, memop op, fn_union u) {
-    *(t[0].start_barrier) = 0;
-    *(t[0].end_barrier) = 0;
+static double run1(ThreadInfo *ti, int num_thread, memop op, fn_union u) {
+    *(ti->start_barrier) = 0;
+    *(ti->end_barrier) = 0;
+    ti->com = op;
+    ti->fn = u;
 
-    for (int i = 0; i < num_thread; i++) {
-        t[i].com = op;
-        t[i].fn = u;
-        write_pipe(&t[i].notify_to_copy_thread, 0);
+    for (int i = 1; i < num_thread; i++) {
+        ti[i].com = op;
+        ti[i].fn = u;
+        write_pipe(&ti[i].notify_to_copy_thread, 0);
+    }
+    run_mem_func(ti);
+
+    size_t total_transfer = ti->total_transfer;
+    for (int i = 1; i < num_thread; i++) {
+        read_pipe(&ti[i].notify_from_copy_thread);
+        total_transfer += ti[i].total_transfer;
     }
 
-    size_t total_transfer = 0;
-    for (int i = 0; i < num_thread; i++) {
-        read_pipe(&t[i].notify_from_copy_thread);
-        total_transfer += t[i].total_transfer;
-    }
-
-    double sec = t[0].actual_sec;
+    double sec = ti->actual_sec;
     double bytes_per_sec = total_transfer / sec;
 
     return bytes_per_sec;
@@ -273,7 +307,11 @@ static ThreadInfo *init_threads(const GlobalState *g, int start_proc, int num_th
         int run_on = start_proc + i;
         t[i].self_cpu = run_on;
 
-        t[i].t = spawn_thread(mem_thread, &t[i]);
+        if (i == 0) {
+            setup_thread(&t[i]);
+        } else {
+            t[i].t = spawn_thread(mem_thread, &t[i]);
+        }
     }
 
     return t;
@@ -283,11 +321,13 @@ static void finish_threads(ThreadInfo *t, int num_thread) {
     delete t[0].start_barrier;
     delete t[0].end_barrier;
 
-    for (int i = 0; i < num_thread; i++) {
+    for (int i = 1; i < num_thread; i++) {
         t[i].com = memop::QUIT;
         write_pipe(&t[i].notify_to_copy_thread, 0);
         wait_thread(t[i].t);
     }
+
+    finish_thread(&t[0]);
 
     delete[] t;
 }
@@ -329,79 +369,6 @@ uint64_t simple_long_sum_test(void const *src, size_t sz) {
     return sum;
 }
 
-
-#if 0
-static void do_test(struct thread_shared *clients, char *dst, char *src,
-                    size_t max_size, int nproc, opfn_t opfn,
-                    const char *test_name, int mul) {
-    int ni = 1;
-    int last = 0;
-
-    while (!last) {
-        size_t copy_size = 1024;
-
-        if (ni >= nproc) {
-            ni = nproc;
-            last = 1;
-        }
-
-        printf("num_thread = %d\n", ni);
-
-        while (copy_size <= max_size) {
-            int niter = 16384;
-
-            niter /= (copy_size / 512);
-            if (niter < 4) {
-                niter = 4;
-            }
-
-            double t0 = sec();
-            for (int ti = 0; ti < ni - 1; ti++) {
-                clients[ti].op_fn = opfn;
-                clients[ti].num_iter = niter;
-                clients[ti].copy_size = copy_size;
-
-                cpu_wmb();
-
-                clients[ti].start = 1;
-            }
-
-            run_test1(dst, src, opfn, niter, copy_size);
-
-            for (int ti = 0; ti < ni - 1; ti++) {
-                while (1) {
-                    if (clients[ti].end == 1) {
-                        clients[ti].end = 0;
-                        break;
-                    }
-
-                    compiler_mb();
-                    yield_thread();
-                }
-            }
-            double t1 = sec();
-
-            size_t transfer_size = copy_size * mul;
-            double total = ni * transfer_size * niter;
-            double bps = total / (t1 - t0);
-
-            if (transfer_size < 16 * 1024) {
-                printf("%-16s : %8d[ B] %f[GB/s]\n", test_name,
-                       (int)transfer_size, bps / (1024 * 1024 * 1024.0));
-            } else if (transfer_size < 16 * 1024ULL * 1024ULL) {
-                printf("%-16s : %8d[KB] %f[GB/s]\n", test_name,
-                       (int)transfer_size / 1024, bps / (1024 * 1024 * 1024.0));
-            } else {
-                printf("%-16s : %8d[MB] %f[GB/s]\n", test_name,
-                       (int)transfer_size / (1024 * 1024),
-                       bps / (1024 * 1024 * 1024.0));
-            }
-            copy_size *= 2;
-        }
-        ni *= 2;
-    }
-}
-#endif
 
 struct MemoryBandwidth : public BenchDesc {
     typedef Table1D<double, std::string> table_t;
@@ -509,8 +476,16 @@ struct MemoryBandwidth : public BenchDesc {
         return result_t(result);
     }
 
-    virtual result_t parse_json_result(picojson::value const &v) {
+    result_t parse_json_result(picojson::value const &v) override {
         return result_t(table_t::parse_json_result(v));
+    }
+
+    bool available(GlobalState const *g) override {
+        if (full_thread) {
+            return (g->proc_table->get_active_cpu_count() > 1);
+        } else {
+            return true;
+        }
     }
 };
 
