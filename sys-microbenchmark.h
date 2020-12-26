@@ -54,24 +54,25 @@ struct BenchDesc {
     F(syscall)                                                                 \
     F(memory_bandwidth_1thread)                                                \
     F(memory_bandwidth_full_thread)                                            \
-    F(cache_bandwidth)                                                         \
+    F(cache_bandwidth_1thread)                                                 \
+    F(cache_bandwidth_full_thread)                                             \
     F(memory_random_access_seq)                                                \
     F(memory_random_access_para)                                               \
     F(openmp)                                                                  \
     F(actual_freq)                                                             \
     F(inter_processor_communication)                                           \
-    F(inter_processor_communication_yield)                                    \
+    F(inter_processor_communication_yield)                                     \
     F(random_branch)                                                           \
     F(inst_random_branch)                                                      \
     F(iter_random_branch)                                                      \
-    F(cos_branch)                                                       \
-    F(indirect_branch)                                              \
-    F(random_branch_hit)                                                           \
-    F(inst_random_branch_hit)                                                      \
-    F(iter_random_branch_hit)                                           \
-    F(cos_branch_hit)                                                   \
-    F(indirect_branch_hit)                                                   \
-    F(instructions)                                                             \
+    F(cos_branch)                                                              \
+    F(indirect_branch)                                                         \
+    F(random_branch_hit)                                                       \
+    F(inst_random_branch_hit)                                                  \
+    F(iter_random_branch_hit)                                                  \
+    F(cos_branch_hit)                                                          \
+    F(indirect_branch_hit)                                                     \
+    F(instructions)                                                            \
     F(pipe)
 
 #define DEFINE_ENTRY(B) std::unique_ptr<BenchDesc> get_##B##_desc();
@@ -152,11 +153,9 @@ extern "C" double get_js_tick();
 struct ostimer_value {
     double v;
 
-    bool operator >= (ostimer_value const &r) const {
-        return this->v >= r.v;
-    }
+    bool operator>=(ostimer_value const &r) const { return this->v >= r.v; }
 
-    uint64_t operator - (ostimer_value const &r) const {
+    uint64_t operator-(ostimer_value const &r) const {
         return (uint64_t)(((this->v - r.v) * 1000.0) + 0.5);
     }
 
@@ -287,12 +286,16 @@ struct GlobalState {
     static constexpr double ostimer_freq = 1e6;
 #endif
 
-    double ostimer_delta_to_sec(uint64_t delta) const { return delta / ostimer_freq; }
+    double ostimer_delta_to_sec(uint64_t delta) const {
+        return delta / ostimer_freq;
+    }
     uint64_t sec_to_ostimer_delta(double sec) const {
         return (uint64_t)((sec * ostimer_freq) + 0.5);
     }
 };
 
 void warmup_thread(GlobalState const *g);
+
+std::string byte1024(size_t sz, int prec);
 
 } // namespace smbm

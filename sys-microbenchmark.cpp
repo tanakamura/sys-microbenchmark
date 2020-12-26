@@ -1,6 +1,8 @@
 #include "sys-microbenchmark.h"
 #include "oneshot_timer.h"
 #include <fcntl.h>
+#include <sstream>
+#include <iomanip>
 
 #ifdef __linux__
 #include <linux/perf_event.h>
@@ -62,7 +64,6 @@ GlobalState::GlobalState() : proc_table(new ProcessorTable()) {
                        this->proc_table->logical_index_to_processor(
                            0, PROC_ORDER_OUTER_TO_INNER),
                        true);
-
 
 #ifdef WINDOWS
     {
@@ -131,8 +132,8 @@ GlobalState::GlobalState() : proc_table(new ProcessorTable()) {
 #define F(B)                                                                   \
     {                                                                          \
         auto x = std::shared_ptr<BenchDesc>(get_##B##_desc());                 \
-        if (x && x->available(this)) {                                  \
-            this->bench_list.push_back(x);                              \
+        if (x && x->available(this)) {                                         \
+            this->bench_list.push_back(x);                                     \
         }                                                                      \
     };
     FOR_EACH_BENCHMARK_LIST(F);
@@ -235,13 +236,30 @@ void warmup_thread(const GlobalState *g) {
     }
 }
 
+std::string byte1024(size_t sz, int prec) {
+    std::ostringstream oss;
+
+    oss << std::fixed << std::setprecision(prec);
+    if (sz <= 1024) {
+        oss << sz;
+        oss << "[Bytes]";
+    } else if (sz <= (1024*1024)) {
+        oss << (sz/(1024.0));
+        oss << "[KiB]";
+    } else if (sz <= (1024*1024*1024)) {
+        oss << (sz/(1024.0*1024.0));
+        oss << "[MiB]";
+    } else {
+        oss << (sz/(1024.0*1024.0*1024.0));
+        oss << "[GiB]";
+    }
+
+    return oss.str();
+}
+
 #ifdef EMSCRIPTEN
 
-EM_JS(double, get_js_tick, (), {
-        return performance.now();
-    }
-    );
-
+EM_JS(double, get_js_tick, (), { return performance.now(); });
 
 #endif
 

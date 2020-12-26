@@ -135,16 +135,27 @@ void sse_stream_copy(void *dst, const void *src, size_t sz) {
     }
 }
 
-load_func_t get_architecture_load_func(GlobalState *g) {
+MemFuncs get_fastest_memfunc(GlobalState const *g) {
+    MemFuncs ret;
+
     if (have_avx512f()) {
-        return avx512_load;
+        ret.p_copy_fn = avx512_copy;
+        ret.p_load_fn = avx512_load;
+        ret.p_store_fn = avx512_store;
     } else if (have_avx()) {
-        return avx256_load;
+        ret.p_copy_fn = avx256_copy;
+        ret.p_load_fn = avx256_load;
+        ret.p_store_fn = avx256_store;
     } else {
-        return gccvec128_load_test;
+        ret.p_copy_fn = gccvec128_copy_test;
+        ret.p_load_fn = gccvec128_load_test;
+        ret.p_store_fn = gccvec128_store_test;
     }
+
+    return ret;
 }
 
 }
+
 
 #endif

@@ -52,6 +52,7 @@
 #define yield_thread() _mm_pause()
 #define HAVE_YIELD_INSTRCUTION
 #define HAVE_DYNAMIC_CODE_GENERATOR
+#define HAVE_ARCHITECURE_SPECIFIC_MEMFUNC
 #else
 #define yield_thread() 
 #endif

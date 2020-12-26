@@ -1,3 +1,5 @@
+#include <sstream>
+#include <iomanip>
 #include "cpu-feature.h"
 #include "memory-bandwidth.h"
 #include "ipc.h"
@@ -52,34 +54,6 @@ static void simple_long_store_test(void *dst, size_t sz) {
 }
 
 static bool T() { return true; }
-
-static void gccvec128_copy_test(void *dst, void const *src, size_t sz) {
-    size_t nloop = sz / 16;
-    const vec128i *ps = (const vec128i *)src;
-    vec128i *pd = (vec128i *)dst;
-
-    for (size_t i = 0; i < nloop; i += 4) {
-        vec128i v0 = ps[i + 0];
-        vec128i v1 = ps[i + 1];
-        vec128i v2 = ps[i + 2];
-        vec128i v3 = ps[i + 3];
-
-        pd[i + 0] = v0;
-        pd[i + 1] = v1;
-        pd[i + 2] = v2;
-        pd[i + 3] = v3;
-    }
-}
-static void gccvec128_store_test(void *dst, size_t sz) {
-    size_t nloop = sz / 16;
-    vec128i *pd = (vec128i *)dst;
-
-    vec128i zero = {0, 0};
-
-    for (size_t i = 0; i < nloop; i++) {
-        pd[i] = zero;
-    }
-}
 
 enum class memop { COPY, STORE, LOAD, QUIT };
 
@@ -187,10 +161,6 @@ setup_thread(ThreadInfo *ti)
 
     ti->src = aligned_calloc(64, ti->buffer_size);
     ti->dst = aligned_calloc(64, ti->buffer_size);
-
-    if (ti->self_cpu != 0) {
-        warmup_thread(ti->g);
-    }
 }
 
 static void
@@ -333,6 +303,38 @@ static void finish_threads(ThreadInfo *t, int num_thread) {
 
 } // namespace
 
+void gccvec128_copy_test(void *dst, void const *src, size_t sz) {
+    size_t nloop = sz / 16;
+    const vec128i *ps = (const vec128i *)src;
+    vec128i *pd = (vec128i *)dst;
+
+    for (size_t i = 0; i < nloop; i += 4) {
+        vec128i v0 = ps[i + 0];
+        vec128i v1 = ps[i + 1];
+        vec128i v2 = ps[i + 2];
+        vec128i v3 = ps[i + 3];
+
+        pd[i + 0] = v0;
+        pd[i + 1] = v1;
+        pd[i + 2] = v2;
+        pd[i + 3] = v3;
+    }
+}
+
+void gccvec128_store_test(void *dst, size_t sz) {
+    size_t nloop = sz / 16;
+    vec128i *pd = (vec128i *)dst;
+
+    vec128i zero = {0, 0};
+
+    for (size_t i = 0; i < nloop; i+=4) {
+        pd[i+0] = zero;
+        pd[i+1] = zero;
+        pd[i+2] = zero;
+        pd[i+3] = zero;
+    }
+}
+
 uint64_t gccvec128_load_test(void const *src, size_t sz) {
     size_t nloop = sz / 16;
     const vec128i *p = (const vec128i *)src;
@@ -419,11 +421,9 @@ struct MemoryBandwidth : public BenchDesc {
         }
 
 
-        int start_proc = 0;
         int nthread = 1;
         if (this->full_thread) {
             if (max_thread >= 8) {
-                start_proc = 0; // skip first proc
                 nthread = max_thread / 2;
             } else {
                 nthread = max_thread;
@@ -432,7 +432,7 @@ struct MemoryBandwidth : public BenchDesc {
 
         size_t test_size = 128 * 1024 * 1024 / nthread;
 
-        ThreadInfo *threads = init_threads(g, start_proc, nthread, 0.1, test_size);
+        ThreadInfo *threads = init_threads(g, 0, nthread, 0.1, test_size);
 
         union fn_union fn;
         int cur = 0;
@@ -488,20 +488,165 @@ struct MemoryBandwidth : public BenchDesc {
     }
 };
 
-struct CacheBandwidth : public BenchDesc {
-    typedef Table2D<double, std::string, int> table_t; // row=bytes, column=thread
+struct CacheBandwidthResult
+    :public BenchResult
+{
+    typedef Table1D<double, int> table_t;
+    typedef std::map<memop, std::unique_ptr<table_t>> table_list_t;
 
-    CacheBandwidth()
-        :BenchDesc("cache-bandwidth")
+    table_list_t list;
+
+    void dump_human_readable(std::ostream &os, int double_precision) override {
+        for (auto m : {memop::COPY, memop::LOAD, memop::STORE}) {
+            auto &p = list[m];
+
+            switch (m) {
+            case memop::COPY:
+                os << "<copy>\n";
+                break;
+            case memop::LOAD:
+                os << "<load>\n";
+                break;
+            case memop::STORE:
+                os << "<store>\n";
+                break;
+            default:
+                break;
+            }
+
+            p->dump_human_readable(os, double_precision);
+        }
+    }
+
+    picojson::value dump_json() const override {
+        typedef picojson::value v_t;
+        std::map<std::string, v_t> list_obj;
+
+        list_obj["COPY"] = list.at(memop::COPY)->dump_json();
+        list_obj["LOAD"] = list.at(memop::LOAD)->dump_json();
+        list_obj["STORE"] = list.at(memop::STORE)->dump_json();
+
+        return v_t(list_obj);
+    }
+
+    static CacheBandwidthResult *parse_json_result(picojson::value const &value) {
+        CacheBandwidthResult *ret = new CacheBandwidthResult;
+        auto obj = value.get<picojson::object>();
+
+        ret->list[memop::COPY].reset(table_t::parse_json_result(obj["COPY"]));
+        ret->list[memop::LOAD].reset(table_t::parse_json_result(obj["LOAD"]));
+        ret->list[memop::STORE].reset(table_t::parse_json_result(obj["STORE"]));
+
+        return ret;
+    }
+};
+
+struct CacheBandwidth : public BenchDesc {
+    typedef CacheBandwidthResult list_t;
+    typedef list_t::table_t table_t;
+
+    bool full_thread;
+
+    CacheBandwidth(bool full_thread)
+        :BenchDesc( full_thread?"cache-bandwidth-mt":"cache-bandwidth-1t"),
+         full_thread(full_thread)
     {}
 
     virtual result_t run(const GlobalState *g) override {
-        return result_t(new table_t("amount", "thread num", 4, 4));
+        size_t start = 2048;
+        size_t max = 16*1024*1024;
+
+        MemFuncs funcs = get_fastest_memfunc(g);
+
+        std::vector<int> size_set;
+
+        for (size_t s=start; s<=max; s*=2) {
+            size_set.push_back(s);
+        }
+
+        int nthread = 1;
+
+        if (full_thread) {
+            nthread = g->proc_table->get_active_cpu_count();
+        }
+
+        list_t *ret = new list_t;
+
+        int start_proc = 0;
+        for (auto op : {memop::COPY, memop::LOAD, memop::STORE}) {
+            std::vector<std::string> labels;
+            std::vector<double> results;
+
+            for (auto test_size : size_set) {
+                ThreadInfo *threads = init_threads(g, start_proc, nthread, 0.1, test_size);
+                union fn_union fn;
+                const char *label = "";
+
+                switch (op) {
+                case memop::COPY:
+                    fn.p_copy_fn = funcs.p_copy_fn;
+                    label = "copy";
+                    break;
+                case memop::LOAD:
+                    fn.p_load_fn = funcs.p_load_fn;
+                    label = "load";
+                    break;
+                case memop::STORE:
+                    fn.p_store_fn = funcs.p_store_fn;
+                    label = "store";
+                    break;
+                default:
+                    break;
+                }
+
+                double bps = run1(threads, nthread, op, fn);
+                if (op == memop::COPY) {
+                    bps *= 2;
+                }
+
+                finish_threads(threads, nthread);
+
+                double gbps = bps / (1024.0*1024.0*1024.0);
+
+                std::ostringstream oss;
+                oss << std::fixed << std::setprecision(2);
+
+                oss << label;
+                oss << " ";
+                //oss << byte1024(test_size,1);
+                oss << test_size;
+
+
+                labels.push_back( oss.str() );
+                results.push_back( gbps );
+            }
+
+            table_t *table = new table_t("size", results.size());
+
+            table->column_label = "GiB/s";
+            table->row_label = size_set;
+
+            for (size_t i=0; i<results.size(); i++) {
+                (*table)[i] = results[i];
+            }
+
+            ret->list.emplace( op, table );
+        }
+
+        return result_t(ret);
     }
 
 
+    bool available(GlobalState const *g) override {
+        if (full_thread) {
+            return (g->proc_table->get_active_cpu_count() > 1);
+        } else {
+            return true;
+        }
+    }
+
     virtual result_t parse_json_result(picojson::value const &v) override {
-        return result_t(table_t::parse_json_result(v));
+        return result_t(list_t::parse_json_result(v));
     }
 };
 
@@ -513,9 +658,26 @@ std::unique_ptr<BenchDesc> get_memory_bandwidth_full_thread_desc() {
     return std::unique_ptr<BenchDesc>(new MemoryBandwidth(true));
 }
 
-std::unique_ptr<BenchDesc> get_cache_bandwidth_desc() {
-    return std::unique_ptr<BenchDesc>(new CacheBandwidth());
-
+std::unique_ptr<BenchDesc> get_cache_bandwidth_1thread_desc() {
+    return std::unique_ptr<BenchDesc>(new CacheBandwidth(false));
 }
+
+std::unique_ptr<BenchDesc> get_cache_bandwidth_full_thread_desc() {
+    return std::unique_ptr<BenchDesc>(new CacheBandwidth(true));
+}
+
+#ifndef HAVE_ARCHITECURE_SPECIFIC_MEMFUNC
+MemFuncs get_fastest_memfunc(const GlobalState *g) {
+    MemFuncs ret;
+
+    ret.p_copy_fn = gccvec128_copy_test;
+    ret.p_load_fn = gccvec128_load_test;
+    ret.p_store_fn = gccvec128_store_test;
+
+    return ret;
+}
+#endif
+
+
 
 } // namespace smbm

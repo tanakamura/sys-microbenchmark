@@ -1,24 +1,27 @@
 #pragma once
+#include "json.h"
 #include "sys-microbenchmark.h"
+#include <iomanip>
 #include <iostream>
 #include <math.h>
-#include <iomanip>
 #include <sstream>
-#include "json.h"
 
 namespace smbm {
 
-template <typename T, typename ROW_LABEL_T, typename COLUMN_LABEL_T> struct Table2D;
+template <typename T, typename ROW_LABEL_T, typename COLUMN_LABEL_T>
+struct Table2D;
 template <typename T, typename LT> struct Table1D;
 
 template <typename T, typename ROW_LABEL_T, typename COLUMN_LABEL_T>
-void dump2d(std::ostream &out, Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *t, bool uniform_width,
-            int double_precision);
+void dump2d(std::ostream &out, Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *t,
+            bool uniform_width, int double_precision);
 
 template <typename T, typename LT>
 void dump1d(std::ostream &out, Table1D<T, LT> *t, int double_precision);
 
-template <typename T, typename ROW_LABEL_T, typename COLUMN_LABEL_T = ROW_LABEL_T> struct Table2D : BenchResult {
+template <typename T, typename ROW_LABEL_T,
+          typename COLUMN_LABEL_T = ROW_LABEL_T>
+struct Table2D : public BenchResult {
     std::string label[2];
     std::vector<T> v;
     std::vector<COLUMN_LABEL_T> column_label;
@@ -60,7 +63,8 @@ template <typename T, typename ROW_LABEL_T, typename COLUMN_LABEL_T = ROW_LABEL_
         return picojson::value(ret);
     }
 
-    static Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *parse_json_result(picojson::value const &value) {
+    static Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *
+    parse_json_result(picojson::value const &value) {
         typedef Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> ret_t;
         typedef picojson::value v_t;
         using namespace json;
@@ -80,7 +84,7 @@ template <typename T, typename ROW_LABEL_T, typename COLUMN_LABEL_T = ROW_LABEL_
     }
 };
 
-template <typename T, typename LT> struct Table1D : BenchResult {
+template <typename T, typename LT> struct Table1D : public BenchResult {
     std::string label;
     std::vector<T> v;
     std::vector<LT> row_label;
@@ -143,9 +147,7 @@ inline unsigned int get_column_width(int x, int) {
 
     return (unsigned int)ceil(log10(x + 1));
 }
-inline unsigned int get_column_width(char x, int) {
-    return 1;
-}
+inline unsigned int get_column_width(char x, int) { return 1; }
 
 inline unsigned int get_column_width(double x, int double_precision) {
     std::stringstream ss;
@@ -167,8 +169,8 @@ inline void insert_char_n(std::ostream &out, char c, int n) {
 }
 
 template <typename T, typename ROW_LABEL_T, typename COLUMN_LABEL_T>
-void dump2d(std::ostream &out, Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *t, bool uniform_width,
-            int double_precision) {
+void dump2d(std::ostream &out, Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *t,
+            bool uniform_width, int double_precision) {
     std::vector<unsigned int> max_column(t->d0, 0);
     unsigned int row_label_max_column = 0;
 
@@ -176,19 +178,21 @@ void dump2d(std::ostream &out, Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *t, bool 
 
     for (int i = 0; i < t->d1; i++) {
         for (int j = 0; j < t->d0; j++) {
-            max_column[j] =
-                std::max(max_column[j], get_column_width((*t)[i][j], double_precision));
+            max_column[j] = std::max(
+                max_column[j], get_column_width((*t)[i][j], double_precision));
         }
     }
 
     for (int j = 0; j < t->d0; j++) {
         max_column[j] =
-            std::max(max_column[j], get_column_width(t->column_label[j],double_precision));
+            std::max(max_column[j],
+                     get_column_width(t->column_label[j], double_precision));
     }
 
     for (int i = 0; i < t->d1; i++) {
         row_label_max_column =
-            std::max(row_label_max_column, get_column_width(t->row_label[i], double_precision));
+            std::max(row_label_max_column,
+                     get_column_width(t->row_label[i], double_precision));
     }
 
     out << "-> : " << t->label[0] << '\n';
@@ -213,7 +217,8 @@ void dump2d(std::ostream &out, Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *t, bool 
     out << ' ';
 
     for (int j = 0; j < t->d0; j++) {
-        unsigned int nchar = get_column_width(t->column_label[j], double_precision);
+        unsigned int nchar =
+            get_column_width(t->column_label[j], double_precision);
         out << '|';
         insert_char_n(out, ' ', max_column[j] - nchar);
         out << t->column_label[j];
@@ -228,7 +233,8 @@ void dump2d(std::ostream &out, Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *t, bool 
 
     for (int i = 0; i < t->d1; i++) {
         {
-            unsigned int nchar = get_column_width(t->row_label[i], double_precision);
+            unsigned int nchar =
+                get_column_width(t->row_label[i], double_precision);
             out << '|';
             insert_char_n(out, ' ', row_label_max_column - nchar);
             out << t->row_label[i];
@@ -246,8 +252,8 @@ void dump2d(std::ostream &out, Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *t, bool 
 
         out << '\n';
 
-        //insert_char_n(out, '-', row_width);
-        //out << '\n';
+        // insert_char_n(out, '-', row_width);
+        // out << '\n';
     }
 
     out << "v : " << t->label[1] << '\n';
@@ -259,14 +265,17 @@ void dump1d(std::ostream &out, Table1D<T, LT> *t, int double_precision) {
     unsigned int row_label_max_column = 0;
 
     for (int i = 0; i < t->d0; i++) {
-        max_column = std::max(max_column, get_column_width((*t)[i], double_precision));
+        max_column =
+            std::max(max_column, get_column_width((*t)[i], double_precision));
     }
 
-    max_column = std::max(max_column, get_column_width(t->column_label, double_precision));
+    max_column = std::max(max_column,
+                          get_column_width(t->column_label, double_precision));
 
     for (int i = 0; i < t->d0; i++) {
         row_label_max_column =
-            std::max(row_label_max_column, get_column_width(t->row_label[i], double_precision));
+            std::max(row_label_max_column,
+                     get_column_width(t->row_label[i], double_precision));
     }
 
     int row_width = 3 + row_label_max_column + max_column;
@@ -284,7 +293,8 @@ void dump1d(std::ostream &out, Table1D<T, LT> *t, int double_precision) {
 
     for (int i = 0; i < t->d0; i++) {
         {
-            unsigned int nchar = get_column_width(t->row_label[i], double_precision);
+            unsigned int nchar =
+                get_column_width(t->row_label[i], double_precision);
             out << '|';
             insert_char_n(out, ' ', row_label_max_column - nchar);
             out << t->row_label[i];
@@ -300,8 +310,8 @@ void dump1d(std::ostream &out, Table1D<T, LT> *t, int double_precision) {
 
         out << '\n';
 
-        //insert_char_n(out, '-', row_width);
-        //out << '\n';
+        // insert_char_n(out, '-', row_width);
+        // out << '\n';
     }
 
     out << "v : " << t->label << '\n';
