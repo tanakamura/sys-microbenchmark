@@ -1,0 +1,315 @@
+#include <setjmp.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "oneshot_timer.h"
+#include "simple-run.h"
+#include "sys-microbenchmark.h"
+#include "table.h"
+
+namespace smbm {
+
+namespace {
+
+struct no_arg {
+    void *alloc_arg() { return nullptr; };
+    void free_arg(void *p) {}
+};
+
+// struct nop : public no_arg {
+//    void run(void *arg) {  }
+//};
+
+struct atoi_99999 : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        g->dummy_write(0, atoi("99999"));
+    }
+};
+struct fflush_stdout : public no_arg {
+    void run(GlobalState const *g, void *arg) { fflush(stdout); }
+};
+struct sscanf_double_99999 : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        char buffer[] = "99999.0";
+        double v;
+
+        int r = sscanf(buffer, "%lf", &v);
+        if (r != 1) {
+            abort();
+        }
+
+        g->dummy_write(0, v);
+    }
+};
+struct sscanf_int_99999 : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        char buffer[] = "99999";
+        int v;
+
+        int r = sscanf(buffer, "%d", &v);
+        if (r != 1) {
+            abort();
+        }
+
+        g->dummy_write(0, v);
+    }
+};
+struct sprintf_double_99999 : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        char buffer[1024];
+        double v = g->getzero();
+
+        int r = sprintf(buffer, "%f", v + 99999.0);
+        if (r < 0) {
+            abort();
+        }
+
+        g->dummy_write(0, buffer[0]);
+    }
+};
+struct sprintf_double_033333 : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        char buffer[1024];
+        double v = g->getzero();
+
+        int r = sprintf(buffer, "%f", v + (1.0 / 3.0));
+        if (r < 0) {
+            abort();
+        }
+
+        g->dummy_write(0, buffer[0]);
+    }
+};
+struct sprintf_int_99999 : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        char buffer[1024];
+        int v = g->getzero();
+
+        int r = sprintf(buffer, "%d", v + 99999);
+        if (r < 0) {
+            abort();
+        }
+
+        g->dummy_write(0, buffer[0]);
+    }
+};
+struct malloc_free_1byte : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        void *p = malloc(1);
+        g->dummy_write(0, (uintptr_t)p);
+        free(p);
+    }
+};
+struct malloc_free_1MiB : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        void *p = malloc(1);
+        g->dummy_write(0, (uintptr_t)p);
+        free(p);
+    }
+};
+struct cos1 : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        double z = g->getzero();
+        double v = cos(z + 1);
+        g->dummy_write(0, v);
+    }
+};
+struct cos0 : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        double z = g->getzero();
+        double v = cos(z);
+        g->dummy_write(0, v);
+    }
+};
+struct cosPI : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        double z = g->getzero();
+        double v = cos(z + M_PI);
+        g->dummy_write(0, v);
+    }
+};
+struct exp : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        double z = g->getzero();
+        double v = ::exp(z + 352423424980.43242);
+        g->dummy_write(0, v);
+    }
+};
+struct log10 : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        double z = g->getzero();
+        double v = ::log10(z + 352423424980.43242);
+        g->dummy_write(0, v);
+    }
+};
+struct log : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        double z = g->getzero();
+        double v = ::log(z + 352423424980.43242);
+        g->dummy_write(0, v);
+    }
+};
+struct log2 : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        double z = g->getzero();
+        double v = ::log2(z + 352423424980.43242);
+        g->dummy_write(0, v);
+    }
+};
+struct rand : public no_arg {
+    void run(GlobalState const *g, void *arg) { g->dummy_write(0, ::rand()); }
+};
+struct setjmp1 : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        jmp_buf jb;
+        g->dummy_write(0, ::setjmp(jb));
+    }
+};
+
+static void call_va_start_end(GlobalState const *g, int x, ...) {
+    va_list va;
+    va_start(va, x);
+    g->dummy_write(0, va_arg(va, int));
+    va_end(va);
+}
+
+struct va_start_end : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        call_va_start_end(g, 1, 2, 3, 4);
+    }
+};
+
+struct clock : public no_arg {
+    void run(GlobalState const *g, void *arg) { g->dummy_write(0, ::clock()); }
+};
+struct time : public no_arg {
+    void run(GlobalState const *g, void *arg) {
+        g->dummy_write(0, ::time(NULL));
+    }
+};
+struct gmtime {
+    void *alloc_arg() {
+        time_t *v = (time_t *)malloc(sizeof(time_t));
+        ::time(v);
+        return v;
+    };
+    void free_arg(void *p) { free(p); }
+
+    void run(GlobalState const *g, void *arg) {
+        time_t *v = (time_t *)arg;
+        struct tm *t = ::gmtime(v);
+        g->dummy_write(0, t->tm_year);
+    }
+};
+struct localtime {
+    void *alloc_arg() {
+        time_t *v = (time_t *)malloc(sizeof(time_t));
+        ::time(v);
+        return v;
+    };
+    void free_arg(void *p) { free(p); }
+
+    void run(GlobalState const *g, void *arg) {
+        time_t *v = (time_t *)arg;
+        struct tm *t = ::localtime(v);
+        g->dummy_write(0, t->tm_year);
+    }
+};
+struct mktime {
+    void *alloc_arg() {
+        struct tm *v = (struct tm *)malloc(sizeof(struct tm));
+        time_t now = ::time(NULL);
+        *v = *::gmtime(&now);
+        return v;
+    };
+    void free_arg(void *p) { free(p); }
+
+    void run(GlobalState const *g, void *arg) {
+        struct tm *t = (struct tm *)arg;
+        time_t v = ::mktime(t);
+        g->dummy_write(0, v);
+    }
+};
+struct asctime {
+    void *alloc_arg() {
+        struct tm *v = (struct tm *)malloc(sizeof(struct tm));
+        time_t now = ::time(NULL);
+        *v = *::gmtime(&now);
+        return v;
+    };
+    void free_arg(void *p) { free(p); }
+
+    void run(GlobalState const *g, void *arg) {
+        struct tm *t = (struct tm *)arg;
+        char *v = ::asctime(t);
+        g->dummy_write(0, v[0]);
+    }
+};
+
+#define FOR_EACH_TEST(F)                                                       \
+    F(atoi_99999)                                                              \
+    F(fflush_stdout)                                                           \
+    F(sscanf_double_99999)                                                     \
+    F(sscanf_int_99999)                                                        \
+    F(sprintf_double_99999)                                                    \
+    F(sprintf_double_033333)                                                   \
+    F(sprintf_int_99999)                                                       \
+    F(malloc_free_1byte)                                                       \
+    F(malloc_free_1MiB)                                                        \
+    F(cos1)                                                                    \
+    F(cos0)                                                                    \
+    F(cosPI)                                                                   \
+    F(exp)                                                                     \
+    F(log)                                                                     \
+    F(log10)                                                                   \
+    F(log2)                                                                    \
+    F(rand)                                                                    \
+    F(setjmp1)                                                                 \
+    F(va_start_end)                                                            \
+    F(clock)                                                                   \
+    F(time)                                                                    \
+    F(gmtime)                                                                  \
+    F(localtime)                                                               \
+    F(mktime)                                                                  \
+    F(asctime)
+
+struct LIBC : public BenchDesc {
+    LIBC() : BenchDesc("libc") {}
+
+    virtual result_t run(GlobalState const *g) override {
+        int count = 0;
+#define INC_COUNT(F) count++;
+        FOR_EACH_TEST(INC_COUNT);
+
+        typedef Table1D<double, std::string> result_t;
+        result_t *result = new result_t("test_name", count);
+
+#define NAME(F) #F,
+
+        result->column_label = " nsec/call";
+        result->row_label = std::vector<std::string>{FOR_EACH_TEST(NAME)};
+
+        count = 0;
+
+#define RUN(F)                                                                 \
+    {                                                                          \
+        F t;                                                                   \
+        (*result)[count++] = run_test_g(g, &t);                                \
+    }
+        FOR_EACH_TEST(RUN)
+
+        return std::unique_ptr<BenchResult>(result);
+    }
+    virtual result_t parse_json_result(picojson::value const &v) override {
+        return result_t(Table1D<double, std::string>::parse_json_result(v));
+    }
+};
+
+} // namespace
+
+std::unique_ptr<BenchDesc> get_libc_desc() {
+    return std::unique_ptr<BenchDesc>(new LIBC());
+}
+
+} // namespace smbm

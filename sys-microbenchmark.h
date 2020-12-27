@@ -73,7 +73,8 @@ struct BenchDesc {
     F(cos_branch_hit)                                                          \
     F(indirect_branch_hit)                                                     \
     F(instructions)                                                            \
-    F(pipe)
+    F(pipe)                                                                    \
+    F(libc)
 
 #define DEFINE_ENTRY(B) std::unique_ptr<BenchDesc> get_##B##_desc();
 
