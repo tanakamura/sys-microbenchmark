@@ -50,6 +50,7 @@ picojson::value get_sysinfo(GlobalState const *g) {
 
 #elif defined HAVE_CPUINFO
     obj["cpuid"] = picojson::value(cpuinfo_get_package(0)->name);
+    puts(cpuinfo_get_package(0)->name);
 #else
     obj["cpuid"] = picojson::value("unknown");
 #endif
@@ -105,7 +106,6 @@ picojson::value get_sysinfo(GlobalState const *g) {
     }
 #else
     obj["vulnerabilities"] = picojson::value("unknown");
-
 #endif
 
 #ifdef POSIX
