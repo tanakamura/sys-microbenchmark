@@ -57,17 +57,36 @@ add_library(libsys-microbenchmark
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   set(HAVE_HWLOC ON)
+  set(HAVE_CPUINFO ON)
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Android")
   set(HAVE_HWLOC ON)
+  set(HAVE_CPUINFO ON)
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
   set(HAVE_HWLOC ON)
+  set(HAVE_CPUINFO ON)
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
   set(HAVE_HWLOC ON)
+  set(HAVE_CPUINFO ON)
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
   set(HAVE_HWLOC OFF)
+  set(HAVE_CPUINFO ON)
 else()
   set(HAVE_HWLOC OFF)
+  set(HAVE_CPUINFO OFF)
 endif()
+
+if (HAVE_CPUINFO)
+  OPTION(CPUINFO_BUILD_UNIT_TESTS "Build cpuinfo unit tests" OFF)
+  OPTION(CPUINFO_BUILD_MOCK_TESTS "Build cpuinfo mock tests" OFF)
+  OPTION(CPUINFO_BUILD_BENCHMARKS "Build cpuinfo micro-benchmarks" OFF)
+
+  add_subdirectory(cpuinfo EXCLUDE_FROM_ALL)
+  set(CPUINFO_LIBNAME cpuinfo)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_CPUINFO")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_CPUINFO")
+  set(CPUINFO_INCLUDE_DIRS cpuinfo/include)
+endif()
+
 
 
 if (HAVE_HWLOC)
@@ -78,14 +97,14 @@ if (HAVE_HWLOC)
     SOURCES ${HWLOC_LIB_DIR}/libhwloc_embedded.a
     )
 
-  target_include_directories(libsys-microbenchmark SYSTEM PUBLIC ${HWLOC_INCLUDE_DIRS})
   link_directories(${HWLOC_LIB_DIR})
 
-  set(HWLOC_LIB_NAME ${HWLOC_LIB_DIR}/libhwloc_embedded.a)
+  set(HWLOC_LIBNAME ${HWLOC_LIB_DIR}/libhwloc_embedded.a)
 
   add_dependencies(libsys-microbenchmark hwloc)
 endif()
 
+target_include_directories(libsys-microbenchmark SYSTEM PUBLIC ${HWLOC_INCLUDE_DIRS} ${CPUINFO_INCLUDE_DIRS})
 
 if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
   set_source_files_properties(x86-avx.cpp PROPERTIES COMPILE_FLAGS "-mavx2 -mfma")
@@ -97,9 +116,11 @@ add_executable(sys-microbenchmark
   )
 
 target_link_libraries(libsys-microbenchmark
+  -lstdc++fs
   ${THREADS_LIBNAME}
   ${OMP_LIBNAME}
-  ${HWLOC_LIB_NAME}
+  ${HWLOC_LIBNAME}
+  ${CPUINFO_LIBNAME}
   )
 
 target_compile_options(libsys-microbenchmark PUBLIC -Wall -std=c++17)

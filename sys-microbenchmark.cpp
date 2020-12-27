@@ -14,6 +14,10 @@
 #include <emscripten.h>
 #endif
 
+#ifdef HAVE_CPUINFO
+#include <cpuinfo.h>
+#endif
+
 #include <math.h>
 #include <string.h>
 #include <unistd.h>
@@ -48,6 +52,10 @@ static inline void ostimer_delay_loop(GlobalState *g, double sec) {
 }
 
 GlobalState::GlobalState() : proc_table(new ProcessorTable()) {
+#ifdef HAVE_CPUINFO
+    cpuinfo_initialize();
+#endif
+
     void *p = aligned_calloc(64, 64);
 
     this->zero_memory = (uint64_t *)p;
