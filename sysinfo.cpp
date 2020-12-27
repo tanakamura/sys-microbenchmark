@@ -4,6 +4,8 @@
 #include <cpuid.h>
 #endif
 
+#include <dirent.h>
+
 #ifdef POSIX
 #include <sys/utsname.h>
 #endif
@@ -13,7 +15,6 @@
 #endif
 
 #include "sys-microbenchmark.h"
-#include <filesystem>
 
 namespace smbm {
 
@@ -64,10 +65,21 @@ picojson::value get_sysinfo(GlobalState const *g) {
 #ifdef __linux__
     std::string path = "/sys/devices/system/cpu/vulnerabilities";
     std::vector<picojson::value> valus;
+    DIR *dir = opendir(path.c_str());
 
-    for (const auto &entry : std::filesystem::directory_iterator(path)) {
+    //for (const auto &entry : std::filesystem::directory_iterator(path)) {
+    while (1) {
+        struct dirent *de = readdir(dir);
+        if (de == nullptr) {
+            break;
+        }
+
+        if (de->d_type != DT_REG) {
+            continue;
+        }
+
         std::ifstream ifs;
-        ifs.open(entry.path());
+        ifs.open(path + "/" + de->d_name);
         if (ifs) {
             std::string line;
             std::getline(ifs, line);
@@ -80,11 +92,12 @@ picojson::value get_sysinfo(GlobalState const *g) {
                 /* pass */
             } else {
                 valus.push_back(
-                    picojson::value(std::string(entry.path().filename())));
+                    picojson::value(de->d_name));
             }
         }
         // puts(entry.path().c_str());
     }
+    closedir(dir);
 
     obj["vulnerabilities"] = picojson::value(valus);
 #endif

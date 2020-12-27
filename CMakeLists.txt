@@ -117,7 +117,6 @@ add_executable(sys-microbenchmark
   )
 
 target_link_libraries(libsys-microbenchmark
-  -lstdc++fs
   ${THREADS_LIBNAME}
   ${OMP_LIBNAME}
   ${HWLOC_LIBNAME}
