@@ -7,6 +7,7 @@ set(CMAKE_C_COMPILER_TARGET ${triple})
 set(CMAKE_CXX_COMPILER clang --sysroot=/opt/wasi-sdk/wasi-sysroot)
 set(CMAKE_CXX_COMPILER_TARGET ${triple})
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lstdc++" CACHE STRING "")
 
 

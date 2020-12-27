@@ -7,8 +7,6 @@ enable_testing()
 #find_package(PkgConfig)
 #pkg_check_modules(HWLOC REQUIRED hwloc)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
-
 find_package(Threads)
 if (Threads::Threads)
   set(THRAEDS_LIBNAME Threads::Threads)
@@ -43,6 +41,7 @@ add_library(libsys-microbenchmark
   instruction.cpp
   pipe.cpp
   libc.cpp
+  libcxx.cpp
 
   x86-avx.cpp
   x86-avx512.cpp

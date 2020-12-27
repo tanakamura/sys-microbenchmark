@@ -32,10 +32,10 @@ struct fflush_stdout : public no_arg {
 struct sscanf_double_99999 : public no_arg {
     void run(GlobalState const *g, void *arg) {
         char buffer[] = "99999.0";
-        double v;
+        double v=0;
 
-        int r = sscanf(buffer, "%lf", &v);
-        if (r != 1) {
+        sscanf(buffer, "%lf", &v);
+        if (v != 99999.0) {
             abort();
         }
 
@@ -45,10 +45,10 @@ struct sscanf_double_99999 : public no_arg {
 struct sscanf_int_99999 : public no_arg {
     void run(GlobalState const *g, void *arg) {
         char buffer[] = "99999";
-        int v;
+        int v=0;
 
-        int r = sscanf(buffer, "%d", &v);
-        if (r != 1) {
+        sscanf(buffer, "%d", &v);
+        if (v != 99999) {
             abort();
         }
 
@@ -247,6 +247,72 @@ struct asctime {
     }
 };
 
+struct SortData {
+    int *orig;
+    int *cur;
+};
+
+static int
+int_compare(const void *l, const void *r) {
+    int lv = *(int*)l;
+    int rv = *(int*)r;
+
+    return lv < rv;
+}
+
+struct sort {
+    int size;
+
+    sort(int size)
+        :size(size)
+    {}
+
+    void *alloc_arg() {
+        int *p = new int [size];
+        for (int i=0; i<size; i++) {
+            p[i] = drand48() * 1024*1024*16;
+        }
+
+        struct SortData *ret = new SortData;
+        ret->orig = p;
+        ret->cur = new int[size];
+
+        return ret;
+    }
+
+    void free_arg(void *p) {
+        struct SortData *d = (struct SortData*)p;
+
+        delete [] d->orig;
+        delete [] d->cur;
+
+        delete d;
+    }
+
+    void run(GlobalState const *g, void *arg) {
+        struct SortData *d = (struct SortData*)arg;
+
+        memcpy(d->cur, d->orig, sizeof(int)*size);
+
+        qsort(d->cur, size, sizeof(int), int_compare);
+    }
+};
+
+struct sort1K
+    : public sort
+{
+    sort1K()
+        :sort(1024)
+    {}
+};
+struct sort4
+    : public sort
+{
+    sort4()
+        :sort(4)
+    {}
+};
+
 #define FOR_EACH_TEST(F)                                                       \
     F(atoi_99999)                                                              \
     F(fflush_stdout)                                                           \
@@ -257,6 +323,8 @@ struct asctime {
     F(sprintf_int_99999)                                                       \
     F(malloc_free_1byte)                                                       \
     F(malloc_free_1MiB)                                                        \
+    F(sort1K)                                                           \
+    F(sort4)                                                            \
     F(cos1)                                                                    \
     F(cos0)                                                                    \
     F(cosPI)                                                                   \
