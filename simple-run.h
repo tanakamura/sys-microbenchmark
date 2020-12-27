@@ -15,12 +15,12 @@ template <typename F> double run_test(const GlobalState *g, F *f) {
     ot.start(g, 0.1);
 
     while (!ot.test_end()) {
-        f->run(a);
+        REP16(f->run(a););
         count++;
     }
 
     double dsec = ot.actual_interval_sec(g);
-    double ret = (dsec / (count)) * 1e9;
+    double ret = (dsec / (count*16)) * 1e9;
 
     f->free_arg(a);
 
@@ -38,11 +38,11 @@ template <typename F> double run_test_g(const GlobalState *g, F *f) {
 
     while (!ot.test_end()) {
         REP16(f->run(g, a);compiler_mb(););
-        count+=16;
+        count++;
     }
 
     double dsec = ot.actual_interval_sec(g);
-    double ret = (dsec / (count)) * 1e9;
+    double ret = (dsec / (count*16)) * 1e9;
 
     f->free_arg(a);
 
