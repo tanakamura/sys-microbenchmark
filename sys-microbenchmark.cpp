@@ -36,6 +36,92 @@ static int perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu,
 }
 #endif
 
+static bool
+ooo_check()
+{
+    int n = 1024;
+    asm volatile (" " : "+r" (n));
+
+    std::vector<int> data(n);
+    for (int i=0; i<n; i++) {
+        data[i]++;
+    }
+
+    double delta0, delta1;
+
+    {
+        int sum0 = 0, sum1 = 0;
+
+        auto t0 = userland_timer_value::get();
+        for (int j=0; j<32; j++) {
+            for (int i=0; i<n; i+=8) {
+                sum0 += data[i+0];
+                asm volatile (" " :"+r"(sum0));
+                sum0 += data[i+1];
+                asm volatile (" " :"+r"(sum0));
+                sum0 += data[i+2];
+                asm volatile (" " :"+r"(sum0));
+                sum0 += data[i+3];
+                asm volatile (" " :"+r"(sum0));
+
+                sum1 += data[i+4];
+                asm volatile (" " :"+r"(sum1));
+                sum1 += data[i+5];
+                asm volatile (" " :"+r"(sum1));
+                sum1 += data[i+6];
+                asm volatile (" " :"+r"(sum1));
+                sum1 += data[i+7];
+                asm volatile (" " :"+r"(sum1));
+            }
+        }
+        auto t1 = userland_timer_value::get();
+
+        delta0 = t1-t0;
+
+        int sum2 = sum0 + sum1;
+        asm volatile (" " : :"r"(sum2));
+    }
+
+    {
+        int sum0 = 0, sum1 = 0;
+
+        auto t0 = userland_timer_value::get();
+        for (int j=0; j<32; j++) {
+            for (int i=0; i<n; i+=8) {
+                sum0 += data[i+0];
+                asm volatile (" " :"+r"(sum0));
+                sum1 += data[i+4];
+                asm volatile (" " :"+r"(sum1));
+
+                sum0 += data[i+1];
+                asm volatile (" " :"+r"(sum0));
+                sum1 += data[i+5];
+                asm volatile (" " :"+r"(sum1));
+
+                sum0 += data[i+2];
+                asm volatile (" " :"+r"(sum0));
+                sum1 += data[i+6];
+                asm volatile (" " :"+r"(sum1));
+
+                sum0 += data[i+3];
+                asm volatile (" " :"+r"(sum0));
+                sum1 += data[i+7];
+                asm volatile (" " :"+r"(sum1));
+            }
+        }
+        auto t1 = userland_timer_value::get();
+
+        delta1 = t1-t0;
+
+        int sum2 = sum0 + sum1;
+        asm volatile (" " : :"r"(sum2));
+    }
+
+    double ratio = delta0 / delta1;
+
+    return ratio < 1.2;
+}
+
 static inline void ostimer_delay_loop(GlobalState *g, double sec) {
     uint64_t target_delta = g->sec_to_ostimer_delta(sec);
 
@@ -103,6 +189,8 @@ GlobalState::GlobalState() : proc_table(new ProcessorTable()) {
         this->userland_cpucounter_freq = freq;
     }
 #endif
+
+    this->ooo = ooo_check();
 
 #ifdef __linux__
 

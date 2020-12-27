@@ -192,7 +192,7 @@ struct BufferEstimator : public Loop {
         int ntry = 4;
         std::vector<uint64_t> result(ntry);
 
-        if (0 && g->is_hw_perf_counter_available()) {
+        if (g->is_hw_perf_counter_available()) {
             for (int i = 0; i < ntry; i++) {
                 clear_chain_cache();
 
@@ -291,7 +291,7 @@ struct SchedEstimator : public Loop {
         int ntry = 8;
         std::vector<uint64_t> result(ntry);
 
-        if (1 && g->is_hw_perf_counter_available()) {
+        if (g->is_hw_perf_counter_available()) {
             for (int i = 0; i < ntry; i++) {
                 auto c0 = g->get_hw_cpucycle();
                 run_func();
@@ -363,7 +363,6 @@ struct Pipe : public BenchDesc {
             for (int pi = 0; pi < (int)Buffer::NUM_BUFFER; pi++) {
                 std::vector<double> history(max_depth);
                 std::vector<double> d(max_depth);
-                //std::vector<double> dd(max_depth);
 
                 for (int di = start_depth; di < max_depth; di++) {
                     BufferEstimator ml((Buffer)pi, di, &random_ptr[0], &random_ptr2[0],
@@ -456,15 +455,11 @@ struct Pipe : public BenchDesc {
         return result_t(table);
     }
 
-    bool available(const GlobalState *g) override {
-#ifdef X86
-        return g->is_hw_perf_counter_available();
-#else
-        return false;
-#endif
-    }
-
     int double_precision() { return 2; }
+
+    bool available(const GlobalState *g) override {
+        return g->has_ooo();
+    }
 
     virtual result_t parse_json_result(picojson::value const &v) {
         return result_t(table_t::parse_json_result(v));

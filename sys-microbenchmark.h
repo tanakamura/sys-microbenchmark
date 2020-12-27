@@ -245,6 +245,11 @@ struct GlobalState {
     double userland_cpucounter_freq;
 #endif
 
+    bool ooo;
+    bool has_ooo() {
+        return ooo;
+    }
+
 #ifdef HAVE_HW_PERF_COUNTER
     int perf_fd_cycle;
     int perf_fd_branch;

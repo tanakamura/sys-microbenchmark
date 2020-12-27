@@ -24,6 +24,8 @@ picojson::value get_sysinfo(GlobalState const *g) {
     obj["userland_timer"] = picojson::value(userland_timer_value::name());
     obj["perf_counter_available"] =
         picojson::value(g->is_hw_perf_counter_available());
+    obj["ooo"] =
+        picojson::value(g->has_ooo());
 
     std::cout << "ostimer: " << ostimer_value::name() << '\n';
     std::cout << "userland_timer: " << userland_timer_value::name() << '\n';

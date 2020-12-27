@@ -21,9 +21,6 @@ if (${OpenMP_FOUND})
 endif()
 
 
-set(HWLOC_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/hwloc-build/include ${CMAKE_CURRENT_BINARY_DIR}/hwloc-2.4.0/include)
-set(HWLOC_LIB_DIR ${CMAKE_CURRENT_BINARY_DIR}/hwloc-build/hwloc/.libs)
-
 add_library(libsys-microbenchmark
 
   sys-microbenchmark.cpp
@@ -90,6 +87,9 @@ endif()
 
 
 if (HAVE_HWLOC)
+  set(HWLOC_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/hwloc-build/include ${CMAKE_CURRENT_SOURCE_DIR}/hwloc/include)
+  set(HWLOC_LIB_DIR ${CMAKE_CURRENT_BINARY_DIR}/hwloc-build/hwloc/.libs)
+
   add_custom_command(OUTPUT ${HWLOC_LIB_DIR}/libhwloc_embedded.a
     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/build-hwloc.sh ${CMAKE_CURRENT_SOURCE_DIR}/hwloc ${BUILD_HWLOC_CONF_ARGS})
 
@@ -102,6 +102,7 @@ if (HAVE_HWLOC)
   set(HWLOC_LIBNAME ${HWLOC_LIB_DIR}/libhwloc_embedded.a)
 
   add_dependencies(libsys-microbenchmark hwloc)
+
 endif()
 
 target_include_directories(libsys-microbenchmark SYSTEM PUBLIC ${HWLOC_INCLUDE_DIRS} ${CPUINFO_INCLUDE_DIRS})
