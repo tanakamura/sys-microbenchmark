@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sys-microbenchmark.h"
+#include "oneshot_timer.h"
 #include "barrier.h"
 
 namespace smbm {

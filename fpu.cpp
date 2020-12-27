@@ -1,0 +1,186 @@
+#include "simple-run.h"
+#include "sys-microbenchmark.h"
+#include "table.h"
+
+namespace smbm {
+
+namespace {
+
+struct STATE {
+    double x;
+    double y;
+    double z;
+};
+
+static double
+l2d(uint64_t v)
+{
+    union {
+        double d;
+        uint64_t l;
+    }u;
+    u.l = v;
+    return u.d;
+}
+
+struct base {
+    double x, y, z;
+    base(double x, double y, double z)
+        :x(x), y(y), z(z)
+    {
+    }
+    STATE *alloc_arg() {
+        STATE *p = new STATE;
+        p->x = x;
+        p->y = y;
+        p->z = z;
+        return p;
+    }
+
+    void free_arg(STATE *s) {
+        delete s;
+    }
+
+};
+
+struct normal_add
+    :public base
+{
+    normal_add()
+        :base(1.0, 2.0, 3.0) 
+    {}
+
+    void run(const GlobalState *g, STATE *s) {
+        g->dummy_write(0, s->x + s->y);
+        compiler_mb();
+    }
+};
+struct denormal_add
+    :public base
+{
+    denormal_add()
+        :base(l2d(1), l2d(2), l2d(3))
+    {}
+
+    void run(const GlobalState *g, STATE *s) {
+        g->dummy_write(0, s->x + s->y);
+        compiler_mb();
+    }
+};
+
+struct normal_mul
+    :public base
+{
+    normal_mul()
+        :base(1.0, 2.0, 3.0) 
+    {}
+
+    void run(const GlobalState *g, STATE *s) {
+        g->dummy_write(0, s->x * s->y);
+        compiler_mb();
+    }
+};
+struct denormal_mul
+    :public base
+{
+    denormal_mul()
+        :base(l2d(1), l2d(2), l2d(3))
+    {}
+
+    void run(const GlobalState *g, STATE *s) {
+        g->dummy_write(0, s->x * s->y);
+        compiler_mb();
+    }
+};
+
+struct normal_div
+    :public base
+{
+    normal_div()
+        :base(1.0, 2.0, 3.0) 
+    {}
+
+    void run(const GlobalState *g, STATE *s) {
+        g->dummy_write(0, s->x / s->y);
+        compiler_mb();
+    }
+};
+struct denormal_div
+    :public base
+{
+    denormal_div()
+        :base(l2d(1), l2d(2), l2d(3))
+    {}
+
+    void run(const GlobalState *g, STATE *s) {
+        g->dummy_write(0, s->x / s->y);
+        compiler_mb();
+    }
+};
+
+
+
+#define FOR_EACH_TEST(F)                        \
+    F(denormal_add)                                 \
+    F(normal_add)                                 \
+    F(denormal_mul)                                 \
+    F(normal_mul)                                   \
+    F(denormal_div)                                 \
+    F(normal_div)                                   \
+
+struct FPU : public BenchDesc {
+    FPU() : BenchDesc("fpu") {}
+
+    virtual result_t run(GlobalState const *g) override {
+        int count = 0;
+#define INC_COUNT(F) count++;
+        FOR_EACH_TEST(INC_COUNT);
+
+        typedef Table1D<double, std::string> result_t;
+        result_t *result = new result_t("test_name", count);
+
+#define NAME(F) #F,
+
+        result->column_label = " nsec/call";
+        result->row_label = std::vector<std::string>{FOR_EACH_TEST(NAME)};
+
+        count = 0;
+
+#define RUN(F)                                                                 \
+    {                                                                          \
+        F t;                                                                   \
+        (*result)[count++] = run_test_g(g, &t);                          \
+    }
+        FOR_EACH_TEST(RUN)
+
+        return std::unique_ptr<BenchResult>(result);
+    }
+    result_t parse_json_result(picojson::value const &v) override {
+        return result_t(Table1D<double, std::string>::parse_json_result(v));
+    }
+
+    bool available(const GlobalState *g) override {
+        long v1 = 1;
+        long v2 = 2;
+        asm volatile (" " :"+r"(v1));
+        asm volatile (" " :"+r"(v2));
+
+        double x = l2d(v1);
+        double y = l2d(v2);
+
+        if ((x + y) == 0) {
+            /* lacks denormal support */
+            return false;
+        }
+
+        return true;
+    }
+};
+
+} // namespace
+
+std::unique_ptr<BenchDesc> get_fpu_desc() {
+    return std::unique_ptr<BenchDesc>(new FPU());
+}
+
+} // namespace smbm

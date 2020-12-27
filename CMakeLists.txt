@@ -42,6 +42,7 @@ add_library(libsys-microbenchmark
   pipe.cpp
   libc.cpp
   libcxx.cpp
+  fpu.cpp
 
   x86-avx.cpp
   x86-avx512.cpp
