@@ -28,7 +28,7 @@ static inline void wmb() {
     __asm__ __volatile__ ("dmb st" ::: "memory");
 }
 static inline void isync(void *begin, void *end) {
-    __builtin___clear_cache(begin, end);
+    __builtin___clear_cache((char*)begin, (char*)end);
     __asm__ __volatile__ ("isb" ::: "memory");
 }
 
