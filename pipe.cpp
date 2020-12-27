@@ -16,7 +16,7 @@
 
 namespace smbm {
 
-#ifdef HAVE_DYNAMIC_CODE_GENERATOR
+#ifdef X86
 
 namespace {
 

@@ -34,7 +34,7 @@
 
 #endif
 
-#if (defined X86) || (defined __aarch64__)
+#if (defined X86) || (defined AARCH64)
 #define HAVE_USERLAND_CPUCOUNTER
 #endif
 
@@ -55,6 +55,10 @@
 #define HAVE_ARCHITECURE_SPECIFIC_MEMFUNC
 #else
 #define yield_thread() 
+#endif
+
+#ifdef AARCH64
+#define HAVE_DYNAMIC_CODE_GENERATOR
 #endif
 
 #ifdef __wasi__

@@ -208,6 +208,11 @@ GlobalState::~GlobalState() {
         close(this->perf_fd_branch);
     }
 #endif
+
+#ifdef HAVE_CPUINFO
+    cpuinfo_deinitialize();
+#endif
+
 }
 
 #ifdef __linux__

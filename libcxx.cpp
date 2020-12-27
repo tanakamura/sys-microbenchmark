@@ -128,7 +128,7 @@ struct unique_ptr_reset {
         std::unique_ptr<int> up;
 
         up.reset(p);
-        up.reset();
+        up.release();
     }
 };
 

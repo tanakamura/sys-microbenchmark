@@ -191,7 +191,7 @@ struct userland_timer_value {
     static userland_timer_value get() {
         userland_timer_value ret;
         uint64_t v64;
-#ifdef __aarch64__
+#ifdef AARCH64
         asm volatile("mrs %0, cntvct_el0" : "=r"(v64));
 #else
         unsigned int z;
@@ -201,7 +201,7 @@ struct userland_timer_value {
         return ret;
     }
 
-#ifdef __aarch64__
+#ifdef AARCH64
     static const char *name() { return "cntvct"; }
 #else
     static const char *name() { return "rdtscp"; }
