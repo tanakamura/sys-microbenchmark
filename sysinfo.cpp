@@ -68,38 +68,44 @@ picojson::value get_sysinfo(GlobalState const *g) {
     DIR *dir = opendir(path.c_str());
 
     //for (const auto &entry : std::filesystem::directory_iterator(path)) {
-    while (1) {
-        struct dirent *de = readdir(dir);
-        if (de == nullptr) {
-            break;
-        }
-
-        if (de->d_type != DT_REG) {
-            continue;
-        }
-
-        std::ifstream ifs;
-        ifs.open(path + "/" + de->d_name);
-        if (ifs) {
-            std::string line;
-            std::getline(ifs, line);
-
-            const char miti[] = "Mitigation:";
-            const char na[] = "Not affected";
-
-            if ((line.compare(0, sizeof(na) - 1, na) == 0) ||
-                (line.compare(0, sizeof(miti) - 1, miti) == 0)) {
-                /* pass */
-            } else {
-                valus.push_back(
-                    picojson::value(de->d_name));
+    if (dir) {
+        while (1) {
+            struct dirent *de = readdir(dir);
+            if (de == nullptr) {
+                break;
             }
-        }
-        // puts(entry.path().c_str());
-    }
-    closedir(dir);
 
-    obj["vulnerabilities"] = picojson::value(valus);
+            if (de->d_type != DT_REG) {
+                continue;
+            }
+
+            std::ifstream ifs;
+            ifs.open(path + "/" + de->d_name);
+            if (ifs) {
+                std::string line;
+                std::getline(ifs, line);
+
+                const char miti[] = "Mitigation:";
+                const char na[] = "Not affected";
+
+                if ((line.compare(0, sizeof(na) - 1, na) == 0) ||
+                    (line.compare(0, sizeof(miti) - 1, miti) == 0)) {
+                    /* pass */
+                } else {
+                    valus.push_back(
+                        picojson::value(de->d_name));
+                }
+            }
+            // puts(entry.path().c_str());
+        }
+        closedir(dir);
+        obj["vulnerabilities"] = picojson::value(valus);
+    } else {
+        obj["vulnerabilities"] = picojson::value("unknown");
+    }
+#else
+    obj["vulnerabilities"] = picojson::value("unknown");
+
 #endif
 
 #ifdef POSIX
