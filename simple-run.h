@@ -1,5 +1,8 @@
 #pragma once
 
+#include "sys-microbenchmark.h"
+#include "barrier.h"
+
 namespace smbm {
 
 template <typename F> double run_test(const GlobalState *g, F *f) {
@@ -34,8 +37,8 @@ template <typename F> double run_test_g(const GlobalState *g, F *f) {
     ot.start(g, 0.1);
 
     while (!ot.test_end()) {
-        f->run(g, a);
-        count++;
+        REP16(f->run(g, a);compiler_mb(););
+        count+=16;
     }
 
     double dsec = ot.actual_interval_sec(g);
