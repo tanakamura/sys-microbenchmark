@@ -129,7 +129,8 @@ struct denormal_div
     F(normal_div)                                   \
 
 struct FPU : public BenchDesc {
-    FPU() : BenchDesc("fpu") {}
+    bool cycle;
+    FPU(bool cycle) : BenchDesc(cycle?"fpu-cycle":"fpu-realtime"), cycle(cycle) {}
 
     virtual result_t run(GlobalState const *g) override {
         int count = 0;
@@ -141,7 +142,11 @@ struct FPU : public BenchDesc {
 
 #define NAME(F) #F,
 
-        result->column_label = " nsec/call";
+        if (cycle) {
+            result->column_label = " cycle/instruction";
+        } else {
+            result->column_label = " nsec/instruction";
+        }
         result->row_label = std::vector<std::string>{FOR_EACH_TEST(NAME)};
 
         count = 0;
@@ -149,7 +154,10 @@ struct FPU : public BenchDesc {
 #define RUN(F)                                                                 \
     {                                                                          \
         F t;                                                                   \
-        (*result)[count++] = run_test_g(g, &t);                          \
+        if (cycle)                                                      \
+            (*result)[count++] = run_test_g_cycle(g, &t);               \
+        else                                                            \
+            (*result)[count++] = run_test_g(g, &t);                     \
     }
         FOR_EACH_TEST(RUN)
 
@@ -160,6 +168,12 @@ struct FPU : public BenchDesc {
     }
 
     bool available(const GlobalState *g) override {
+        if (cycle) {
+            if (! g->is_hw_perf_counter_available()) {
+                return false;
+            }
+        }
+
         long v1 = 1;
         long v2 = 2;
         asm volatile (" " :"+r"(v1));
@@ -179,8 +193,11 @@ struct FPU : public BenchDesc {
 
 } // namespace
 
-std::unique_ptr<BenchDesc> get_fpu_desc() {
-    return std::unique_ptr<BenchDesc>(new FPU());
+std::unique_ptr<BenchDesc> get_fpu_realtime_desc() {
+    return std::unique_ptr<BenchDesc>(new FPU(false));
+}
+std::unique_ptr<BenchDesc> get_fpu_cycle_desc() {
+    return std::unique_ptr<BenchDesc>(new FPU(true));
 }
 
 } // namespace smbm

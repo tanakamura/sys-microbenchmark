@@ -50,6 +50,30 @@ template <typename F> double run_test_g(const GlobalState *g, F *f) {
     return ret;
 }
 
+template <typename F> double run_test_g_cycle(const GlobalState *g, F *f) {
+    auto a = f->alloc_arg();
+
+    f->run(g, a);
+
+    oneshot_timer ot(2);
+    uint64_t count = 0;
+    ot.start(g, 0.1);
+    auto c0 = g->get_hw_cpucycle();
+
+    while (!ot.test_end()) {
+        REP16(f->run(g, a);compiler_mb(););
+        count++;
+    }
+
+    auto c1 = g->get_hw_cpucycle();
+    double dcycle = c1-c0;
+    double ret = (dcycle / (count*16));
+
+    f->free_arg(a);
+
+    return ret;
+}
+
 template <typename F> double run_test_unroll32(const GlobalState *g, F *f) {
     auto a = f->alloc_arg();
 

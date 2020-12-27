@@ -75,8 +75,9 @@ struct BenchDesc {
     F(instructions)                                                            \
     F(pipe)                                                                    \
     F(libc)                                                                    \
-    F(libcxx)                                                           \
-    F(fpu)                                                              \
+    F(libcxx)                                                                  \
+    F(fpu_realtime)                                                            \
+    F(fpu_cycle)
 
 #define DEFINE_ENTRY(B) std::unique_ptr<BenchDesc> get_##B##_desc();
 
