@@ -302,4 +302,12 @@ void warmup_thread(GlobalState const *g);
 
 std::string byte1024(size_t sz, int prec);
 
+picojson::value get_sysinfo(GlobalState const *g);
+picojson::value load_result(std::string const &path);
+void save_result(std::string const &paht, picojson::value const &val);
+
+picojson::value insert_result(picojson::value const &root, picojson::value const &insobj_result, picojson::value const &insobj_sysinfo);
+
 } // namespace smbm
+
+

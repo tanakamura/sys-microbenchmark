@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <sstream>
 #include <iomanip>
+#include <fstream>
 
 #ifdef __linux__
 #include <linux/perf_event.h>
@@ -256,6 +257,30 @@ std::string byte1024(size_t sz, int prec) {
 
     return oss.str();
 }
+
+picojson::value load_result(std::string const &json_path)
+{
+    picojson::value ret;
+    std::ifstream ifs;
+    ifs.open(json_path);
+    if (ifs) {
+        ifs >> ret;
+    } else {
+        ret = picojson::value( (picojson::value::array){} );
+    }
+
+    return ret;
+}
+
+
+void
+save_result(std::string const &path, picojson::value const &v)
+{
+    std::ofstream ofs;
+    ofs.open(path);
+    ofs << v;
+}
+
 
 #ifdef EMSCRIPTEN
 
