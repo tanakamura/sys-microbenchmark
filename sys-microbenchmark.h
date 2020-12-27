@@ -246,7 +246,7 @@ struct GlobalState {
 #endif
 
     bool ooo;
-    bool has_ooo() {
+    bool has_ooo() const {
         return ooo;
     }
 

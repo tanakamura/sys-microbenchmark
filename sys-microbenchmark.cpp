@@ -1,9 +1,9 @@
 #include "sys-microbenchmark.h"
 #include "oneshot_timer.h"
 #include <fcntl.h>
-#include <sstream>
-#include <iomanip>
 #include <fstream>
+#include <iomanip>
+#include <sstream>
 
 #ifdef __linux__
 #include <linux/perf_event.h>
@@ -36,14 +36,12 @@ static int perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu,
 }
 #endif
 
-static bool
-ooo_check()
-{
+static bool ooo_check() {
     int n = 1024;
-    asm volatile (" " : "+r" (n));
+    asm volatile(" " : "+r"(n));
 
     std::vector<int> data(n);
-    for (int i=0; i<n; i++) {
+    for (int i = 0; i < n; i++) {
         data[i]++;
     }
 
@@ -53,68 +51,68 @@ ooo_check()
         int sum0 = 0, sum1 = 0;
 
         auto t0 = userland_timer_value::get();
-        for (int j=0; j<32; j++) {
-            for (int i=0; i<n; i+=8) {
-                sum0 += data[i+0];
-                asm volatile (" " :"+r"(sum0));
-                sum0 += data[i+1];
-                asm volatile (" " :"+r"(sum0));
-                sum0 += data[i+2];
-                asm volatile (" " :"+r"(sum0));
-                sum0 += data[i+3];
-                asm volatile (" " :"+r"(sum0));
+        for (int j = 0; j < 32; j++) {
+            for (int i = 0; i < n; i += 8) {
+                sum0 += data[i + 0];
+                asm volatile(" " : "+r"(sum0));
+                sum0 += data[i + 1];
+                asm volatile(" " : "+r"(sum0));
+                sum0 += data[i + 2];
+                asm volatile(" " : "+r"(sum0));
+                sum0 += data[i + 3];
+                asm volatile(" " : "+r"(sum0));
 
-                sum1 += data[i+4];
-                asm volatile (" " :"+r"(sum1));
-                sum1 += data[i+5];
-                asm volatile (" " :"+r"(sum1));
-                sum1 += data[i+6];
-                asm volatile (" " :"+r"(sum1));
-                sum1 += data[i+7];
-                asm volatile (" " :"+r"(sum1));
+                sum1 += data[i + 4];
+                asm volatile(" " : "+r"(sum1));
+                sum1 += data[i + 5];
+                asm volatile(" " : "+r"(sum1));
+                sum1 += data[i + 6];
+                asm volatile(" " : "+r"(sum1));
+                sum1 += data[i + 7];
+                asm volatile(" " : "+r"(sum1));
             }
         }
         auto t1 = userland_timer_value::get();
 
-        delta0 = t1-t0;
+        delta0 = t1 - t0;
 
         int sum2 = sum0 + sum1;
-        asm volatile (" " : :"r"(sum2));
+        asm volatile(" " : : "r"(sum2));
     }
 
     {
         int sum0 = 0, sum1 = 0;
 
         auto t0 = userland_timer_value::get();
-        for (int j=0; j<32; j++) {
-            for (int i=0; i<n; i+=8) {
-                sum0 += data[i+0];
-                asm volatile (" " :"+r"(sum0));
-                sum1 += data[i+4];
-                asm volatile (" " :"+r"(sum1));
+        for (int j = 0; j < 32; j++) {
+            for (int i = 0; i < n; i += 8) {
+                sum0 += data[i + 0];
+                asm volatile(" " : "+r"(sum0));
+                sum1 += data[i + 4];
+                asm volatile(" " : "+r"(sum1));
 
-                sum0 += data[i+1];
-                asm volatile (" " :"+r"(sum0));
-                sum1 += data[i+5];
-                asm volatile (" " :"+r"(sum1));
+                sum0 += data[i + 1];
+                asm volatile(" " : "+r"(sum0));
+                sum1 += data[i + 5];
+                asm volatile(" " : "+r"(sum1));
 
-                sum0 += data[i+2];
-                asm volatile (" " :"+r"(sum0));
-                sum1 += data[i+6];
-                asm volatile (" " :"+r"(sum1));
+                sum0 += data[i + 2];
+                asm volatile(" " : "+r"(sum0));
+                sum1 += data[i + 6];
+                asm volatile(" " : "+r"(sum1));
 
-                sum0 += data[i+3];
-                asm volatile (" " :"+r"(sum0));
-                sum1 += data[i+7];
-                asm volatile (" " :"+r"(sum1));
+                sum0 += data[i + 3];
+                asm volatile(" " : "+r"(sum0));
+                sum1 += data[i + 7];
+                asm volatile(" " : "+r"(sum1));
             }
         }
         auto t1 = userland_timer_value::get();
 
-        delta1 = t1-t0;
+        delta1 = t1 - t0;
 
         int sum2 = sum0 + sum1;
-        asm volatile (" " : :"r"(sum2));
+        asm volatile(" " : : "r"(sum2));
     }
 
     double ratio = delta0 / delta1;
@@ -300,7 +298,6 @@ GlobalState::~GlobalState() {
 #ifdef HAVE_CPUINFO
     cpuinfo_deinitialize();
 #endif
-
 }
 
 #ifdef __linux__
@@ -345,43 +342,38 @@ std::string byte1024(size_t sz, int prec) {
     if (sz <= 1024) {
         oss << sz;
         oss << "[Bytes]";
-    } else if (sz <= (1024*1024)) {
-        oss << (sz/(1024.0));
+    } else if (sz <= (1024 * 1024)) {
+        oss << (sz / (1024.0));
         oss << "[KiB]";
-    } else if (sz <= (1024*1024*1024)) {
-        oss << (sz/(1024.0*1024.0));
+    } else if (sz <= (1024 * 1024 * 1024)) {
+        oss << (sz / (1024.0 * 1024.0));
         oss << "[MiB]";
     } else {
-        oss << (sz/(1024.0*1024.0*1024.0));
+        oss << (sz / (1024.0 * 1024.0 * 1024.0));
         oss << "[GiB]";
     }
 
     return oss.str();
 }
 
-picojson::value load_result(std::string const &json_path)
-{
+picojson::value load_result(std::string const &json_path) {
     picojson::value ret;
     std::ifstream ifs;
     ifs.open(json_path);
     if (ifs) {
         ifs >> ret;
     } else {
-        ret = picojson::value( (picojson::value::array){} );
+        ret = picojson::value((picojson::value::array){});
     }
 
     return ret;
 }
 
-
-void
-save_result(std::string const &path, picojson::value const &v)
-{
+void save_result(std::string const &path, picojson::value const &v) {
     std::ofstream ofs;
     ofs.open(path);
     ofs << v;
 }
-
 
 #ifdef EMSCRIPTEN
 
