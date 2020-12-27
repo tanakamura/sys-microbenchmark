@@ -37,13 +37,9 @@ static int perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu,
 #endif
 
 static bool ooo_check() {
-    int n = 1024;
-    asm volatile(" " : "+r"(n));
-
-    std::vector<int> data(n);
-    for (int i = 0; i < n; i++) {
-        data[i]++;
-    }
+    int data = 0;
+    int n = 1024*1024;
+    asm volatile(" " : "+r"(data), "+r"(n));
 
     double delta0, delta1;
 
@@ -51,26 +47,24 @@ static bool ooo_check() {
         int sum0 = 0, sum1 = 0;
 
         auto t0 = userland_timer_value::get();
-        for (int j = 0; j < 32; j++) {
-            for (int i = 0; i < n; i += 8) {
-                sum0 += data[i + 0];
-                asm volatile(" " : "+r"(sum0));
-                sum0 += data[i + 1];
-                asm volatile(" " : "+r"(sum0));
-                sum0 += data[i + 2];
-                asm volatile(" " : "+r"(sum0));
-                sum0 += data[i + 3];
-                asm volatile(" " : "+r"(sum0));
+        for (int i = 0; i < n; i ++) {
+            sum0 *= data;
+            asm volatile(" " : "+r"(sum0));
+            sum0 *= data;
+            asm volatile(" " : "+r"(sum0));
+            sum0 *= data;
+            asm volatile(" " : "+r"(sum0));
+            sum0 *= data;
+            asm volatile(" " : "+r"(sum0));
 
-                sum1 += data[i + 4];
-                asm volatile(" " : "+r"(sum1));
-                sum1 += data[i + 5];
-                asm volatile(" " : "+r"(sum1));
-                sum1 += data[i + 6];
-                asm volatile(" " : "+r"(sum1));
-                sum1 += data[i + 7];
-                asm volatile(" " : "+r"(sum1));
-            }
+            sum1 *= data;
+            asm volatile(" " : "+r"(sum1));
+            sum1 *= data;
+            asm volatile(" " : "+r"(sum1));
+            sum1 *= data;
+            asm volatile(" " : "+r"(sum1));
+            sum1 *= data;
+            asm volatile(" " : "+r"(sum1));
         }
         auto t1 = userland_timer_value::get();
 
@@ -84,28 +78,26 @@ static bool ooo_check() {
         int sum0 = 0, sum1 = 0;
 
         auto t0 = userland_timer_value::get();
-        for (int j = 0; j < 32; j++) {
-            for (int i = 0; i < n; i += 8) {
-                sum0 += data[i + 0];
-                asm volatile(" " : "+r"(sum0));
-                sum1 += data[i + 4];
-                asm volatile(" " : "+r"(sum1));
+        for (int i = 0; i < n; i ++) {
+            sum0 *= data;
+            asm volatile(" " : "+r"(sum0));
+            sum1 *= data;
+            asm volatile(" " : "+r"(sum1));
 
-                sum0 += data[i + 1];
-                asm volatile(" " : "+r"(sum0));
-                sum1 += data[i + 5];
-                asm volatile(" " : "+r"(sum1));
+            sum0 *= data;
+            asm volatile(" " : "+r"(sum0));
+            sum1 *= data;
+            asm volatile(" " : "+r"(sum1));
 
-                sum0 += data[i + 2];
-                asm volatile(" " : "+r"(sum0));
-                sum1 += data[i + 6];
-                asm volatile(" " : "+r"(sum1));
+            sum0 *= data;
+            asm volatile(" " : "+r"(sum0));
+            sum1 *= data;
+            asm volatile(" " : "+r"(sum1));
 
-                sum0 += data[i + 3];
-                asm volatile(" " : "+r"(sum0));
-                sum1 += data[i + 7];
-                asm volatile(" " : "+r"(sum1));
-            }
+            sum0 *= data;
+            asm volatile(" " : "+r"(sum0));
+            sum1 *= data;
+            asm volatile(" " : "+r"(sum1));
         }
         auto t1 = userland_timer_value::get();
 
@@ -116,6 +108,7 @@ static bool ooo_check() {
     }
 
     double ratio = delta0 / delta1;
+    printf("ooo ratio : %f\n", ratio);
 
     return ratio < 1.2;
 }

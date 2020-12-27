@@ -96,7 +96,7 @@ Loop(int ninsn, bool indirect_branch, int nindirect_brach_target) {
     *(p++) = 0xd1000400 | (second_argument<<5) | second_argument;
 
     /* cbnz loop_begin */
-    int delta = (loop_start-p)&((1<<20)-1);
+    int delta = (loop_start-p)&((1<<19)-1);
     *(p++) = 0xb5000000 | (delta<<5) | second_argument;
 
     /* mov x0, x4 */

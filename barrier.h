@@ -28,6 +28,7 @@ static inline void wmb() {
     __asm__ __volatile__ ("dmb st" ::: "memory");
 }
 static inline void isync() {
+    wmb();
     __asm__ __volatile__ ("isb" ::: "memory");
 }
 
