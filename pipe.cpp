@@ -75,6 +75,8 @@ struct Loop {
             loop_end(p, loop_start);
         }
         exit_frame(p, callee_saved_int_regs, callee_saved_fp_regs);
+
+        isync(m.p, p);
     }
 
     void run_func() {
@@ -415,11 +417,9 @@ struct Pipe : public BenchDesc {
                                        &random_ptr2[0]);
                     ml.gen();
 
-                    isync();
-
                     double v = ml.run(g);
                     history[di] = v;
-                    //printf("%d:%f\n", di, v);
+                    printf("%d,%f\n", di, v);
                 }
 
                 int distance = 2;
@@ -460,7 +460,6 @@ struct Pipe : public BenchDesc {
                     for (int depth = start_depth; depth < max_depth; depth++) {
                         SchedEstimator se((SchedPipe)pi, depth, multi);
                         se.gen();
-                        isync();
                         double v = se.run(g);
                         history[depth] = v;
                     }

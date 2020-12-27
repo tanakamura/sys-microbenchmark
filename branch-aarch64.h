@@ -112,6 +112,5 @@ Loop(int ninsn, bool indirect_branch, int nindirect_brach_target) {
         abort();
     }
 
-    wmb();
-    isync();
+    isync(this->em.p, ((char*)this->em.p) + this->inst_len);
 }

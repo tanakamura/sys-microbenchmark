@@ -18,7 +18,7 @@ static inline void rmb() {
 static inline void wmb() {
     _mm_sfence();
 }
-static inline void isync() {
+static inline void isync(void *begin, void *end) {
 }
 #elif defined AARCH64
 static inline void rmb() {
@@ -27,8 +27,8 @@ static inline void rmb() {
 static inline void wmb() {
     __asm__ __volatile__ ("dmb st" ::: "memory");
 }
-static inline void isync() {
-    wmb();
+static inline void isync(void *begin, void *end) {
+    __builtin___clear_cache(begin, end);
     __asm__ __volatile__ ("isb" ::: "memory");
 }
 
@@ -39,7 +39,7 @@ static inline void rmb() {
 static inline void wmb() {
     compiler_mb();
 }
-static inline void isync() {
+static inline void isync(void *begin, void *end) {
     compiler_mb();
 }
 #endif
