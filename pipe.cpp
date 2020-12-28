@@ -431,7 +431,7 @@ struct Pipe : public BenchDesc {
 
                     double v = ml.run(g);
                     history[di] = v;
-                    printf("%d,%f\n", di, v);
+                    //printf("%d,%f\n", di, v);
                 }
 
                 double min = 1e9;
@@ -483,7 +483,7 @@ struct Pipe : public BenchDesc {
                         se.gen();
                         double v = se.run(g);
                         history[depth] = v;
-                        printf("%d:%f\n", depth, v);
+                        //printf("%d:%f\n", depth, v);
                     }
 
                     double final_sum = 0;
@@ -518,10 +518,10 @@ struct Pipe : public BenchDesc {
                     
                     if (multi) {
                         labels.push_back(std::string(pipe_name_table[pi]) +
-                                         "(multi chain)");
+                                         "(multi scheduler depth)");
                     } else {
                         labels.push_back(std::string(pipe_name_table[pi]) +
-                                         "(single chain)");
+                                         "(single scheduler depth)");
                     }
 
                     if (find_pos == 3) {
