@@ -7,6 +7,11 @@ static inline void gen_iadd(char *&p, int operand0, int operand1) {
     *(uint32_t*)p = 0x8b000000 | operand0 | (operand1<<5) | (operand1<<16);
     p += 4;
 }
+static inline void gen_imul(char *&p, int operand0, int operand1) {
+    *(uint32_t*)p = 0x9b007c00 | operand0 | (operand1<<5) | (operand1<<16);
+    p += 4;
+}
+
 
 static inline void gen_ior(char *&p, int operand0, int operand1) {
     *(uint32_t*)p = 0xaa000000 | operand0 | (operand1<<5) | (operand1<<16);
