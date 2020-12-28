@@ -38,6 +38,19 @@ static inline void gen_iadd(char *&p, int operand0, int operand1) {
     *(p++) = 0xc0 | op0_modrm | op1_modrm;
 }
 
+static inline void gen_imul(char *&p, int operand0, int operand1) {
+    int op0_r = (operand0 >> 3) << 0;
+    int op1_b = (operand1 >> 3) << 2;
+
+    int op0_modrm = (operand0 & 7) << 3;
+    int op1_modrm = operand1 & 7;
+
+    *(p++) = 0x48 | op0_r | op1_b;
+    *(p++) = 0x0f;
+    *(p++) = 0xaf;
+    *(p++) = 0xc0 | op0_modrm | op1_modrm;
+}
+
 static inline void gen_ior(char *&p, int operand0, int operand1) {
     int op0_r = (operand0 >> 3) << 0;
     int op1_b = (operand1 >> 3) << 2;

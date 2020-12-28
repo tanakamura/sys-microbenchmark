@@ -38,7 +38,8 @@ enum class Buffer {
 };
 
 enum class SchedPipe {
-    INT,
+    INT_ADD,
+    INT_MUL,
     FP,
     //    LD,
     NUM_PIPE,
@@ -46,7 +47,7 @@ enum class SchedPipe {
 
 const char *name_table[] = {"ROB", "INT PRF",
                             "FP PRF"}; //, "INT_WINDOW", "FP_WINDOW"};
-const char *pipe_name_table[] = {"INT", "FP", "LD"};
+const char *pipe_name_table[] = {"INT_ADD", "INT_MUL", "FP", "LD"};
 
 struct Loop {
     ExecutableMemory m;
@@ -93,13 +94,14 @@ struct Chain {
 struct BufferEstimator : public Loop {
     Buffer pipe;
     int depth;
-    static constexpr int window_per_loop = 256;
+    static constexpr int window_per_loop = 16;
     void **p;
     Chain *random_data0, *random_data1;
+    static constexpr int load_chain_num = 4;
 
     int loop_counter_reg, p0_reg, p1_reg, p2_reg;
 
-    int loop_count() { return 128; }
+    int loop_count() { return 1024; }
 
     BufferEstimator(Buffer p, int depth, Chain *l, Chain *l2)
         : pipe(p), depth(depth), random_data0(l), random_data1(l2) {
@@ -183,9 +185,13 @@ struct BufferEstimator : public Loop {
 
     void body(char *&p) {
         for (int i = 0; i < window_per_loop; i++) {
-            gen_load64(p, p0_reg, p0_reg);
+            for (int i=0; i<load_chain_num; i++) {
+                gen_load64(p, p0_reg, p0_reg);
+            }
             gen_target(p, p0_reg);
-            gen_load64(p, p1_reg, p1_reg);
+            for (int i=0; i<load_chain_num; i++) {
+                gen_load64(p, p1_reg, p1_reg);
+            }
             gen_target(p, p1_reg);
         }
     }
@@ -202,7 +208,7 @@ struct BufferEstimator : public Loop {
         run_func();
 
         int ntry = 4;
-        std::vector<uint64_t> result(ntry);
+        uint64_t min = ULONG_LONG_MAX;
 
         if (g->is_hw_perf_counter_available()) {
             for (int i = 0; i < ntry; i++) {
@@ -212,12 +218,11 @@ struct BufferEstimator : public Loop {
                 run_func();
                 auto c1 = g->get_hw_cpucycle();
 
-                result[i] = c1 - c0;
+                auto d = c1-c0;
+                min = std::min(min,d);
             }
 
-            std::nth_element(result.begin(), result.begin() + ntry / 2,
-                             result.end());
-            return result[ntry / 2] / (double)(loop_count() * window_per_loop);
+            return min / (double)(loop_count() * window_per_loop);
         } else {
             for (int i = 0; i < ntry; i++) {
                 clear_chain_cache();
@@ -226,19 +231,19 @@ struct BufferEstimator : public Loop {
                 run_func();
                 auto c1 = userland_timer_value::get();
 
-                result[i] = c1 - c0;
+                auto d = c1-c0;
+
+                min = std::min(min,d);
             }
 
-            std::nth_element(result.begin(), result.begin() + ntry / 2,
-                             result.end());
-            return (1e9 * g->userland_timer_delta_to_sec(result[ntry / 2])) /
+            return (1e9 * g->userland_timer_delta_to_sec(min)) /
                    (double)(loop_count() * window_per_loop);
         }
     }
 };
 
 struct SchedEstimator : public Loop {
-    static constexpr int dependency_length = 2048;
+    static constexpr int dependency_length = 512*3;
     SchedPipe pipe;
     int overlap;
     bool multi_chain;
@@ -248,8 +253,11 @@ struct SchedEstimator : public Loop {
 
     void gen_target(char *&p, int operand0, int operand1) {
         switch (pipe) {
-        case SchedPipe::INT:
+        case SchedPipe::INT_ADD:
             gen_iadd(p, operand0, operand1);
+            break;
+        case SchedPipe::INT_MUL:
+            gen_imul(p, operand0, operand1);
             break;
 
         case SchedPipe::FP:
@@ -264,7 +272,10 @@ struct SchedEstimator : public Loop {
     int loop_count() { return 4096; }
 
     void body(char *&p) {
-        int overlap2 = overlap * 2 + 1;
+        int overlap2 = overlap * 2;
+        if (!multi_chain) {
+            overlap2++;
+        }
         int chain_half = dependency_length / 2;
         int overlap_half = overlap2 / 2;
 
@@ -290,7 +301,9 @@ struct SchedEstimator : public Loop {
             gen_target(p, reg0, reg0);
         }
 
-        gen_target(p, reg0, reg1);
+        if (!multi_chain) {
+            gen_target(p, reg0, reg1);
+        }
 
         for (int i = 0; i < tail_length; i++) {
             gen_target(p, reg0, reg0);
@@ -301,8 +314,8 @@ struct SchedEstimator : public Loop {
         /* warm up */
         run_func();
 
-        int ntry = 8;
-        std::vector<uint64_t> result(ntry);
+        int ntry = 4;
+        uint64_t min = -1ULL;
 
         if (g->is_hw_perf_counter_available()) {
             for (int i = 0; i < ntry; i++) {
@@ -310,24 +323,22 @@ struct SchedEstimator : public Loop {
                 run_func();
                 auto c1 = g->get_hw_cpucycle();
 
-                result[i] = c1 - c0;
+                auto d = c1-c0;
+                min = std::min(d,min);
             }
 
-            std::nth_element(result.begin(), result.begin() + ntry / 2,
-                             result.end());
-            return result[ntry / 2] / (double)loop_count();
+            return min / (double)loop_count();
         } else {
             for (int i = 0; i < ntry; i++) {
                 auto c0 = userland_timer_value::get();
                 run_func();
                 auto c1 = userland_timer_value::get();
 
-                result[i] = c1 - c0;
+                auto d = c1-c0;
+                min = std::min(d,min);
             }
 
-            std::nth_element(result.begin(), result.begin() + ntry / 2,
-                             result.end());
-            return (1e9 * g->userland_timer_delta_to_sec(result[ntry / 2])) /
+            return (1e9 * g->userland_timer_delta_to_sec(min)) /
                    (double)loop_count();
         }
     }
@@ -354,6 +365,8 @@ struct Pipe : public BenchDesc {
     virtual result_t run(GlobalState const *g) override {
         std::vector<std::string> labels;
         std::vector<int> results;
+
+        int max_depth = 400;
 
         if (1) {
             int nchain = 1024*1024*16;
@@ -405,7 +418,6 @@ struct Pipe : public BenchDesc {
                 random_ptr2[i].v = (uintptr_t)&random_ptr2[idx];
             }
 
-            int max_depth = 400;
             int start_depth = 4;
 
             for (int pi = 0; pi < (int)Buffer::NUM_BUFFER; pi++) {
@@ -420,6 +432,13 @@ struct Pipe : public BenchDesc {
                     double v = ml.run(g);
                     history[di] = v;
                     printf("%d,%f\n", di, v);
+                }
+
+                double min = 1e9;
+                /* remove spike */
+                for (int di=max_depth-1; di>=start_depth; di--) {
+                    min = std::min(history[di], min);
+                    history[di] = min;
                 }
 
                 int distance = 2;
@@ -442,19 +461,21 @@ struct Pipe : public BenchDesc {
                 results.push_back(maxd_pos + 1);
 
                 if (pi == 0) {
-                    max_depth = maxd_pos + 1;
+                    max_depth = maxd_pos + BufferEstimator::load_chain_num;
                 }
             }
         }
 
+        max_depth = std::min(256, max_depth);
+        max_depth = std::max(8, max_depth);
+        
         if (1) {
             int start_depth = 1;
-            int max_depth = 256;
             int distance = 2;
             double instr_ratio =
                 (1.0 / SchedEstimator::dependency_length) * 1.5;
 
-            for (bool multi : {true, false}) {
+            for (bool multi : {true,false}) {
                 for (int pi = 0; pi < (int)SchedPipe::NUM_PIPE; pi++) {
                     std::vector<double> history(max_depth);
                     for (int depth = start_depth; depth < max_depth; depth++) {
@@ -462,13 +483,22 @@ struct Pipe : public BenchDesc {
                         se.gen();
                         double v = se.run(g);
                         history[depth] = v;
+                        printf("%d:%f\n", depth, v);
                     }
 
                     double final_sum = 0;
                     for (int i = max_depth - 3; i < max_depth; i++) {
                         final_sum += history[i];
                     }
+
                     double final_value = final_sum / 3;
+
+                    /* remove spike */
+                    double minval = 1e9;
+                    for (int depth=start_depth; depth < max_depth; depth++) {
+                        minval = std::min(minval, history[depth]);
+                        history[depth] = minval;
+                    }
 
                     int find_pos = 0;
 
