@@ -458,7 +458,7 @@ struct Pipe : public BenchDesc {
                 }
 
                 labels.push_back(name_table[pi]);
-                results.push_back(maxd_pos + 1);
+                results.push_back(maxd_pos + BufferEstimator::load_chain_num);
 
                 if (pi == 0) {
                     max_depth = maxd_pos + BufferEstimator::load_chain_num;
@@ -468,7 +468,7 @@ struct Pipe : public BenchDesc {
 
         max_depth = std::min(256, max_depth);
         max_depth = std::max(8, max_depth);
-        
+
         if (1) {
             int start_depth = 1;
             int distance = 2;
