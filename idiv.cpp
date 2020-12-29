@@ -33,6 +33,8 @@ convert_deltaval<false>(GlobalState const *g, uint64_t d) {
     return g->userland_timer_delta_to_sec(d) * 1e9; // to nsec
 }
 
+typedef Table2D<double,uint32_t> table_t;
+
 template<typename int_t, bool is_32, bool use_perf_counter>
 std::unique_ptr<BenchResult> run(GlobalState const *g) {
     int n_divider_bit = 63;
@@ -43,10 +45,7 @@ std::unique_ptr<BenchResult> run(GlobalState const *g) {
         n_divisor_bit = 33;
     }
 
-    typedef Table2D<double,uint32_t> result_t;
-    result_t*result_table(new result_t("divisor_bit", "divider_bit", n_divisor_bit+1, n_divider_bit));
-
-    double max = 0;
+    table_t*result_table(new table_t("divisor_bit", "divider_bit", n_divisor_bit+1, n_divider_bit));
 
     for (int divisor_bit = 0; divisor_bit <= n_divisor_bit; divisor_bit++) {
         result_table->row_label[divisor_bit] = divisor_bit;
@@ -82,7 +81,6 @@ std::unique_ptr<BenchResult> run(GlobalState const *g) {
             double result = deltaval / (nloop * 16.0);
 
             (*result_table)[divisor_bit][divider_bit - 1] = result;
-            max = std::max(max, result);
         }
     }
 
@@ -111,7 +109,7 @@ struct IDIV
     }
 
     result_t parse_json_result(picojson::value const &v) override {
-        return result_t(Table2D<uint32_t,uint32_t>::parse_json_result(v));
+        return result_t(table_t::parse_json_result(v));
     }
 
     int double_precision() override {

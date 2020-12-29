@@ -1,5 +1,6 @@
 #include "sys-microbenchmark.h"
 #include <iomanip>
+#include <fstream>
 #include <stdio.h>
 #include <string.h>
 
@@ -11,7 +12,7 @@
 
 static void
 run(smbm::GlobalState *g,
-    std::map<std::string, picojson::value> *this_obj,
+    smbm::result_set_t *this_obj,
     std::shared_ptr<smbm::BenchDesc> const &b)
 {
     std::cout << "==== " << b->name << " ====\n";
@@ -19,7 +20,7 @@ run(smbm::GlobalState *g,
         auto result = b->run(g);
         std::cout << std::fixed << std::setprecision(b->double_precision());
         result->dump_human_readable(std::cout, b->double_precision());
-        (*this_obj)[b->name] = result->dump_json();
+        (*this_obj)[b->name] = result;
     }
     std::cout << "\n\n";
 }
@@ -69,7 +70,7 @@ int main(int argc, char **argv) {
 
     }
 
-    std::map<std::string, picojson::value> result_obj;
+    result_set_t result_obj;
     SysInfo sys_info = get_sysinfo(&g);
 
     warmup_thread(&g);
@@ -89,8 +90,27 @@ int main(int argc, char **argv) {
     }
 
     {
-        picojson::value root = load_result(json_path);
-        root = insert_result(root, picojson::value(result_obj), sys_info);
-        save_result(json_path, root);
+        ResultListSet rls;
+        {
+            std::ifstream ifs;
+            ifs.open(json_path);
+            if (ifs) {
+                picojson::value v;
+                ifs >> v;
+                deserialize_result(rls, v);
+            }
+        }
+        merge_result(rls, result_obj, sys_info);
+
+        picojson::value v = serialize_result(rls);
+        {
+            std::ofstream ofs;
+            ofs.open(json_path);
+            if (!ofs) {
+                perror(json_path.c_str());
+                exit(1);
+            }
+            ofs << v;
+        }
     }
 }

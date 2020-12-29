@@ -27,6 +27,7 @@ add_library(libsys-microbenchmark
   cpuset.cpp
   cpu-feature.cpp
   sysinfo.cpp
+  io.cpp
 
   idiv.cpp
   syscall.cpp

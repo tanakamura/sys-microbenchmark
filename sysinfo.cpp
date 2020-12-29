@@ -128,42 +128,5 @@ SysInfo get_sysinfo(GlobalState const *g) {
     return ret;
 }
 
-picojson::value insert_result(picojson::value const &root,
-                              picojson::value const &insobj_result,
-                              SysInfo const &insobj_sysinfo)
-{
-    using namespace json;
-
-    auto vec = root.get<picojson::value::array>();
-
-    const std::string &ins_cpuid = insobj_sysinfo.cpuid;
-    const std::string &ins_osname = insobj_sysinfo.os;
-
-    for (auto it = vec.begin(); it != vec.end();) {
-        auto &si = it->get("sys_info");
-
-        std::string cpuid0 = si.get("cpuid").get<std::string>();
-        std::string osname0 = si.get("os").get<std::string>();
-
-        if (cpuid0 == ins_cpuid && osname0 == ins_osname) {
-            it = vec.erase(it);
-        } else {
-            ++it;
-        }
-    }
-
-    std::map<std::string, picojson::value> json_sysinfo_map;
-    json_sysinfo_map["cpuid"] = to_jv(insobj_sysinfo.cpuid);
-    json_sysinfo_map["os"] = to_jv(insobj_sysinfo.os);
-    json_sysinfo_map["vulnerabilities"] = to_jv(insobj_sysinfo.vulnerabilities);
-
-    std::map<std::string, picojson::value> entry;
-    entry["sys_info"] = picojson::value(json_sysinfo_map);
-    entry["result"] = insobj_result;
-
-    vec.push_back(picojson::value(entry));
-
-    return picojson::value(vec);
-}
 
 } // namespace smbm

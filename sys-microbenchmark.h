@@ -35,9 +35,11 @@ struct BenchResult {
     virtual void dump_human_readable(std::ostream &, int double_precision) = 0;
 };
 
+typedef std::shared_ptr<BenchResult> result_ptr_t;
+
 struct BenchDesc {
     std::string name;
-    typedef std::unique_ptr<BenchResult> result_t;
+    typedef result_ptr_t result_t;
     BenchDesc(std::string const &s) : name(s) {}
     virtual ~BenchDesc() {}
     virtual result_t run(GlobalState const *g) = 0;
@@ -252,12 +254,13 @@ struct SysInfo {
     double ooo_ratio;
 };
 
+typedef std::map< std::string, result_ptr_t > result_set_t;
+
 struct ResultList {
     struct SysInfo sysinfo;
-    std::map< std::string, std::unique_ptr<BenchResult> > results;
+    result_set_t results;
 };
 
-void read_result_list(picojson::value const &r, ResultList &dst);
 
 struct GlobalState {
     std::unique_ptr<ProcessorTable> proc_table;
@@ -335,10 +338,16 @@ std::string byte1024(size_t sz, int prec);
 
 SysInfo get_sysinfo(GlobalState const *g);
 
-picojson::value load_result(std::string const &path);
-void save_result(std::string const &paht, picojson::value const &val);
+struct ResultListSet {
+    std::vector<ResultList> lists;
+};
 
-picojson::value insert_result(picojson::value const &root, picojson::value const &insobj_result, SysInfo const &insobj_sysinfo);
+void deserialize_result(ResultListSet &dst, picojson::value const &r);
+picojson::value serialize_result(ResultListSet const &src);
+
+void merge_result(ResultListSet &dst,
+                  result_set_t const &insert_result,
+                  SysInfo const &insert_sysinfo);
 
 } // namespace smbm
 

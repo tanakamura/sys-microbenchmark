@@ -78,7 +78,9 @@ struct Table2D : public BenchResult {
 
         ret_t *r = new Table2D(label1, label0, d1, d0);
 
-        from_jv(l.get("values"), &r->v);
+        from_jv(value.get("values"), &r->v);
+        from_jv(value.get("column_label"), &r->column_label);
+        from_jv(value.get("row_label"), &r->row_label);
 
         return r;
     }
@@ -123,11 +125,13 @@ template <typename T, typename LT> struct Table1D : public BenchResult {
         std::string label0;
         from_jv(value.get("label"), &label0);
 
+
         int d0;
         from_jv(value.get("d0"), &d0);
 
         auto r = new Table1D(label0, d0);
         from_jv(value.get("values"), &r->v);
+        from_jv(value.get("row_label"), &r->row_label);
 
         return r;
     }

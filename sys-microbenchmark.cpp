@@ -38,7 +38,7 @@ static int perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu,
 
 static double ooo_check() {
     int data = 0;
-    int n = 1024*1024;
+    int n = 1024 * 1024;
     asm volatile(" " : "+r"(data), "+r"(n));
 
     double delta0, delta1;
@@ -47,7 +47,7 @@ static double ooo_check() {
         int sum0 = 0, sum1 = 0;
 
         auto t0 = userland_timer_value::get();
-        for (int i = 0; i < n; i ++) {
+        for (int i = 0; i < n; i++) {
             sum0 *= data;
             asm volatile(" " : "+r"(sum0));
             sum0 *= data;
@@ -78,7 +78,7 @@ static double ooo_check() {
         int sum0 = 0, sum1 = 0;
 
         auto t0 = userland_timer_value::get();
-        for (int i = 0; i < n; i ++) {
+        for (int i = 0; i < n; i++) {
             sum0 *= data;
             asm volatile(" " : "+r"(sum0));
             sum1 *= data;
@@ -227,6 +227,20 @@ GlobalState::GlobalState() : proc_table(new ProcessorTable()) {
     FOR_EACH_BENCHMARK_LIST(F);
 }
 
+std::vector<std::shared_ptr<BenchDesc>> get_all_benchmark_list() {
+    std::vector<std::shared_ptr<BenchDesc>> ret;
+
+#define FA(B)                                                                  \
+    {                                                                          \
+        auto x = std::shared_ptr<BenchDesc>(get_##B##_desc());                 \
+        ret.push_back(x);                                                      \
+    };                                                                         \
+
+    FOR_EACH_BENCHMARK_LIST(FA);
+
+    return ret;
+}
+
 double GlobalState::userland_timer_delta_to_sec(uint64_t delta) const {
 #ifdef HAVE_USERLAND_CPUCOUNTER
     return delta / this->userland_cpucounter_freq;
@@ -347,25 +361,6 @@ std::string byte1024(size_t sz, int prec) {
     }
 
     return oss.str();
-}
-
-picojson::value load_result(std::string const &json_path) {
-    picojson::value ret;
-    std::ifstream ifs;
-    ifs.open(json_path);
-    if (ifs) {
-        ifs >> ret;
-    } else {
-        ret = picojson::value((picojson::value::array){});
-    }
-
-    return ret;
-}
-
-void save_result(std::string const &path, picojson::value const &v) {
-    std::ofstream ofs;
-    ofs.open(path);
-    ofs << v;
 }
 
 #ifdef EMSCRIPTEN
