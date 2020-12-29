@@ -1,6 +1,6 @@
 #pragma once
 
-#include "features.h"
+#include "sys-features.h"
 #include <stddef.h>
 #include <stdint.h>
 #include "oneshot_timer.h"

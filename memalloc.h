@@ -1,5 +1,7 @@
 #pragma once
 
+#include "sys-features.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <malloc.h>

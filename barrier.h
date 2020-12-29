@@ -1,6 +1,6 @@
 #pragma once 
 
-#include "features.h"
+#include "sys-features.h"
 
 #ifdef X86
 #include <x86intrin.h>

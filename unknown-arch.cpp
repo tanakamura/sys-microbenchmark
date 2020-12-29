@@ -1,4 +1,4 @@
-#include "features.h"
+#include "sys-features.h"
 #include "memory-bandwidth.h"
 
 #ifdef UNKNOWN_ARCH

@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "features.h"
+#include "sys-features.h"
 
 #ifdef X86
 #include <x86intrin.h>
@@ -233,11 +233,37 @@ struct userland_timer_value {
 typedef uint64_t perf_counter_value_t;
 struct ProcessorTable;
 
+std::vector<std::shared_ptr<BenchDesc> > get_all_benchmark_list();
+
+struct ProcessorInfo {
+    std::string cpuid;
+    std::string uarch;
+};
+
+struct SysInfo {
+    std::string ostimer;
+    std::string userland_timer;
+    std::string os;
+    std::string date;
+    std::vector<std::string> vulnerabilities;
+    //std::vector<ProcessorInfo> procs;
+    std::string cpuid;
+    bool perf_counter_available;
+    double ooo_ratio;
+};
+
+struct ResultList {
+    struct SysInfo sysinfo;
+    std::map< std::string, std::unique_ptr<BenchResult> > results;
+};
+
+void read_result_list(picojson::value const &r, ResultList &dst);
+
 struct GlobalState {
     std::unique_ptr<ProcessorTable> proc_table;
 
     std::vector<std::shared_ptr<BenchDesc>> bench_list;
-    std::vector<std::shared_ptr<BenchDesc>> get_benchmark_list() {
+    std::vector<std::shared_ptr<BenchDesc>> get_active_benchmark_list() const {
         return bench_list;
     }
 
@@ -245,9 +271,9 @@ struct GlobalState {
     double userland_cpucounter_freq;
 #endif
 
-    bool ooo;
+    double ooo_ratio;
     bool has_ooo() const {
-        return ooo;
+        return ooo_ratio < 1.2;
     }
 
 #ifdef HAVE_HW_PERF_COUNTER
@@ -307,11 +333,12 @@ void warmup_thread(GlobalState const *g);
 
 std::string byte1024(size_t sz, int prec);
 
-picojson::value get_sysinfo(GlobalState const *g);
+SysInfo get_sysinfo(GlobalState const *g);
+
 picojson::value load_result(std::string const &path);
 void save_result(std::string const &paht, picojson::value const &val);
 
-picojson::value insert_result(picojson::value const &root, picojson::value const &insobj_result, picojson::value const &insobj_sysinfo);
+picojson::value insert_result(picojson::value const &root, picojson::value const &insobj_result, SysInfo const &insobj_sysinfo);
 
 } // namespace smbm
 

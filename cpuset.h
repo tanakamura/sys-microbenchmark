@@ -3,7 +3,7 @@
 #include <vector>
 #include <memory>
 
-#include "features.h"
+#include "sys-features.h"
 
 #ifdef HAVE_HWLOC
 #include <hwloc.h>

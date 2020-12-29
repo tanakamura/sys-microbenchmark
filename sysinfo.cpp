@@ -1,4 +1,6 @@
-#include "features.h"
+#include "sys-microbenchmark.h"
+#include "json.h"
+
 #include <fstream>
 #ifdef X86
 #include <cpuid.h>
@@ -14,22 +16,19 @@
 #include <cpuinfo.h>
 #endif
 
-#include "sys-microbenchmark.h"
-
 namespace smbm {
 
-picojson::value get_sysinfo(GlobalState const *g) {
+SysInfo get_sysinfo(GlobalState const *g) {
+    SysInfo ret;
+
+    ret.ostimer = ostimer_value::name();
+    ret.userland_timer = userland_timer_value::name();
+
     std::map<std::string, picojson::value> obj;
 
-    obj["ostimer"] = picojson::value(ostimer_value::name());
-    obj["userland_timer"] = picojson::value(userland_timer_value::name());
-    obj["perf_counter_available"] =
-        picojson::value(g->is_hw_perf_counter_available());
-    obj["ooo"] =
-        picojson::value(g->has_ooo());
+    ret.perf_counter_available = g->is_hw_perf_counter_available();
+    ret.ooo_ratio = g->ooo_ratio;
 
-    std::cout << "ostimer: " << ostimer_value::name() << '\n';
-    std::cout << "userland_timer: " << userland_timer_value::name() << '\n';
     std::cout << "perf_counter: "
               << (g->is_hw_perf_counter_available() ? "yes" : "no") << '\n';
 
@@ -45,22 +44,23 @@ picojson::value get_sysinfo(GlobalState const *g) {
     x_cpuid(data + 4 * 2, 0x80000004);
     data[12] = 0;
 
-    obj["cpuid"] = picojson::value((char *)data);
+    ret.cpuid = (char *)data;
     puts((char *)data);
 
 #elif defined HAVE_CPUINFO
-    obj["cpuid"] = picojson::value(cpuinfo_get_package(0)->name);
-    puts(cpuinfo_get_package(0)->name);
+    ret.cpuid = cpuinfo_get_package(0)->name;
 #else
     obj["cpuid"] = picojson::value("unknown");
 #endif
+
+    puts(cpuinfo_get_package(0)->name);
 
     {
         char buffer[256];
         time_t now = time(NULL);
         static struct tm *t = localtime(&now);
         strftime(buffer, 1024, "%Y-%m-%dT%H:%M:%d%z", t);
-        obj["date"] = picojson::value(buffer);
+        ret.date = buffer;
     }
 
 #ifdef __linux__
@@ -68,7 +68,7 @@ picojson::value get_sysinfo(GlobalState const *g) {
     std::vector<picojson::value> valus;
     DIR *dir = opendir(path.c_str());
 
-    //for (const auto &entry : std::filesystem::directory_iterator(path)) {
+    // for (const auto &entry : std::filesystem::directory_iterator(path)) {
     if (dir) {
         while (1) {
             struct dirent *de = readdir(dir);
@@ -93,19 +93,16 @@ picojson::value get_sysinfo(GlobalState const *g) {
                     (line.compare(0, sizeof(miti) - 1, miti) == 0)) {
                     /* pass */
                 } else {
-                    valus.push_back(
-                        picojson::value(de->d_name));
+                    ret.vulnerabilities.push_back(de->d_name);
                 }
             }
-            // puts(entry.path().c_str());
         }
         closedir(dir);
-        obj["vulnerabilities"] = picojson::value(valus);
     } else {
-        obj["vulnerabilities"] = picojson::value("unknown");
+        ret.vulnerabilities.push_back("unknow");
     }
 #else
-    obj["vulnerabilities"] = picojson::value("unknown");
+    ret.vulnerabilities.push_back("unknow");
 #endif
 
 #ifdef POSIX
@@ -114,30 +111,33 @@ picojson::value get_sysinfo(GlobalState const *g) {
         uname(&n);
         std::string uname = std::string(n.sysname) + " " + n.release + " " +
                             n.version + " " + n.machine;
-        obj["os"] = picojson::value(uname);
+        ret.os = uname;
     }
 
 #elif defined WINDOWS
-    obj["os"] = picojson::value("Windows");
+    ret.os = "Windows";
 
 #elif defined __wasi__
-    obj["os"] = picojson::value("wasi");
+    ret.os = "wasi";
 
 #else
-    obj["os"] = picojson::value("unknown");
+    ret.os = "unknown";
 
 #endif
 
-    return picojson::value(obj);
+    return ret;
 }
 
 picojson::value insert_result(picojson::value const &root,
                               picojson::value const &insobj_result,
-                              picojson::value const &insobj_sysinfo) {
+                              SysInfo const &insobj_sysinfo)
+{
+    using namespace json;
+
     auto vec = root.get<picojson::value::array>();
 
-    std::string ins_cpuid = insobj_sysinfo.get("cpuid").get<std::string>();
-    std::string ins_osname = insobj_sysinfo.get("os").get<std::string>();
+    const std::string &ins_cpuid = insobj_sysinfo.cpuid;
+    const std::string &ins_osname = insobj_sysinfo.os;
 
     for (auto it = vec.begin(); it != vec.end();) {
         auto &si = it->get("sys_info");
@@ -152,8 +152,13 @@ picojson::value insert_result(picojson::value const &root,
         }
     }
 
+    std::map<std::string, picojson::value> json_sysinfo_map;
+    json_sysinfo_map["cpuid"] = to_jv(insobj_sysinfo.cpuid);
+    json_sysinfo_map["os"] = to_jv(insobj_sysinfo.os);
+    json_sysinfo_map["vulnerabilities"] = to_jv(insobj_sysinfo.vulnerabilities);
+
     std::map<std::string, picojson::value> entry;
-    entry["sys_info"] = insobj_sysinfo;
+    entry["sys_info"] = picojson::value(json_sysinfo_map);
     entry["result"] = insobj_result;
 
     vec.push_back(picojson::value(entry));

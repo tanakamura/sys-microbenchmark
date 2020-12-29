@@ -1,4 +1,4 @@
-#include "features.h"
+#include "sys-features.h"
 
 namespace smbm {
 namespace {

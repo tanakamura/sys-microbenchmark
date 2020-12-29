@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     using namespace smbm;
 
     GlobalState g;
-    auto bench_list = g.get_benchmark_list();
+    auto bench_list = g.get_active_benchmark_list();
 
     std::string json_path = "result.json";
 
@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
     }
 
     std::map<std::string, picojson::value> result_obj;
-    picojson::value sys_info = get_sysinfo(&g);
+    SysInfo sys_info = get_sysinfo(&g);
 
     warmup_thread(&g);
 

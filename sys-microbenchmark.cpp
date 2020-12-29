@@ -36,7 +36,7 @@ static int perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu,
 }
 #endif
 
-static bool ooo_check() {
+static double ooo_check() {
     int data = 0;
     int n = 1024*1024;
     asm volatile(" " : "+r"(data), "+r"(n));
@@ -110,7 +110,7 @@ static bool ooo_check() {
     double ratio = delta0 / delta1;
     printf("ooo ratio : %f\n", ratio);
 
-    return ratio < 1.2;
+    return ratio;
 }
 
 static inline void ostimer_delay_loop(GlobalState *g, double sec) {
@@ -181,7 +181,7 @@ GlobalState::GlobalState() : proc_table(new ProcessorTable()) {
     }
 #endif
 
-    this->ooo = ooo_check();
+    this->ooo_ratio = ooo_check();
 
 #ifdef __linux__
 

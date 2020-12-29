@@ -133,3 +133,5 @@ target_link_libraries(timer-test libsys-microbenchmark)
 
 
 add_test(NAME timer COMMAND $<TARGET_FILE:timer-test>)
+
+add_subdirectory(tools)

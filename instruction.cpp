@@ -1,3 +1,4 @@
+#include "sys-features.h"
 #include "cpu-feature.h"
 #include "memalloc.h"
 #include "oneshot_timer.h"
