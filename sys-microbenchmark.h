@@ -5,8 +5,6 @@
 #include <string>
 #include <vector>
 
-#include "picojson.h"
-
 #include "sys-features.h"
 
 #ifdef X86

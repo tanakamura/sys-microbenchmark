@@ -211,6 +211,7 @@ struct BufferEstimator : public Loop {
         uint64_t min = ULONG_LONG_MAX;
 
         if (g->is_hw_perf_counter_available()) {
+#ifdef HAVE_HW_PERF_COUNTER
             for (int i = 0; i < ntry; i++) {
                 clear_chain_cache();
 
@@ -223,6 +224,8 @@ struct BufferEstimator : public Loop {
             }
 
             return min / (double)(loop_count() * window_per_loop);
+#endif
+            return 0;
         } else {
             for (int i = 0; i < ntry; i++) {
                 clear_chain_cache();
@@ -318,6 +321,7 @@ struct SchedEstimator : public Loop {
         uint64_t min = -1ULL;
 
         if (g->is_hw_perf_counter_available()) {
+#ifdef HAVE_HW_PERF_COUNTER
             for (int i = 0; i < ntry; i++) {
                 auto c0 = g->get_hw_cpucycle();
                 run_func();
@@ -328,6 +332,8 @@ struct SchedEstimator : public Loop {
             }
 
             return min / (double)loop_count();
+#endif
+            return 0;
         } else {
             for (int i = 0; i < ntry; i++) {
                 auto c0 = userland_timer_value::get();

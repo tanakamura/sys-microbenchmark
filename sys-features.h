@@ -1,6 +1,12 @@
 #pragma once
+#include "picojson.h"
 
 #include <stdint.h>
+#include <math.h>
+
+#ifndef M_PI
+#define M_PI 3.1415926535897932384
+#endif
 
 #if (defined __i386__) || (defined __x86_64__)
 #define X86

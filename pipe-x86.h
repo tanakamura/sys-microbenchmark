@@ -118,7 +118,6 @@ static inline void gen_int_to_fp(char *&p, int operand0, int operand1) {
     *(p++) = 0xc0 | op0_modrm | op1_modrm;
 }
 
-
 static inline void gen_load64(char *&p, int operand0, int operand1) {
     int rex_r = (operand1 >> 3) << 0;
     int rex_b = (operand0 >> 3) << 2;
@@ -131,9 +130,7 @@ static inline void gen_load64(char *&p, int operand0, int operand1) {
     *(p++) = 0x00 | op0_modrm | op1_modrm;
 }
 
-static inline void gen_nop(char *&p) {
-    *(p++) = 0x90;
-}
+static inline void gen_nop(char *&p) { *(p++) = 0x90; }
 
 static inline void gen_setimm64(char *&p, int operand, uint64_t val) {
     int rex_r = (operand >> 3);
@@ -221,7 +218,6 @@ void exit_frame(char *&p, TI callee_save_int, TF callee_save_fp) {
         cur += 8;
     }
 
-
     /* mov rsp, rbp */
     *(p++) = 0x48;
     *(p++) = 0x89;
@@ -263,19 +259,18 @@ static auto constexpr callee_saved_int_regs = {RBX, RDI, RSI, R14, R15};
 // static auto constexpr caller_saved_fp_regs = {0,1,2,3,4,5};
 static auto constexpr callee_saved_fp_regs = {6,  7,  8,  9,  10,
                                               11, 12, 13, 14, 15};
+static std::vector<int> const simple_regs = {0, 1, 2,  3,  6,  7,
+                                             8, 9, 10, 11, 14, 15};
 #else
 // static auto constexpr caller_saved_int_regs = {RAX, RCX, RDX, R8, R9, R10,
 // R11, RDI, RSI};
 
 static auto constexpr callee_saved_int_regs = {RBX, R14, R15};
 
-static std::vector<int> const simple_regs = {
-    0, 1,2, 3,
-    6,7,
-    8,9,10,11,
-    14,15};
+static std::vector<int> const simple_regs = {0, 1, 2,  3,  6,  7,
+                                             8, 9, 10, 11, 14, 15};
 
-//static auto constexpr caller_saved_fp_regs = {0, 1, 2,  3,  4,  5,  6,  7,
+// static auto constexpr caller_saved_fp_regs = {0, 1, 2,  3,  4,  5,  6,  7,
 //                                              8, 9, 10, 11, 12, 13, 14, 15};
 static std::initializer_list<int> constexpr callee_saved_fp_regs = {};
 

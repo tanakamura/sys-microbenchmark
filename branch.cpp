@@ -3,9 +3,9 @@
 #include "table.h"
 #include <random>
 #define _USE_MATH_DEFINES
+#include "barrier.h"
 #include "memalloc.h"
 #include <math.h>
-#include "barrier.h"
 
 namespace smbm {
 
@@ -131,10 +131,12 @@ static ResultValue run1(const GlobalState *g, int ninst, int nloop,
     loop.invoke(&table[0], nloop);
 
     t0 = userland_timer_value::get();
+#ifdef HAVE_HW_PERF_COUNTER    
     if (g->is_hw_perf_counter_available()) {
         cycle0 = g->get_hw_cpucycle();
         branch0 = g->get_hw_branch_miss();
     }
+#endif
 
     int niter = 1024;
     for (int i = 0; i < niter; i++) {
@@ -142,12 +144,14 @@ static ResultValue run1(const GlobalState *g, int ninst, int nloop,
     }
     t1 = userland_timer_value::get();
 
+#ifdef HAVE_HW_PERF_COUNTER
     if (g->is_hw_perf_counter_available()) {
         cycle1 = g->get_hw_cpucycle();
         branch1 = g->get_hw_branch_miss();
         ret.cycle = (cycle1 - cycle0) / (double)niter;
         ret.branch_miss = (branch1 - branch0) / (double)niter;
     }
+#endif
 
     ret.nsec = (g->userland_timer_delta_to_sec(t1 - t0) / (double)niter) * 1e9;
 
@@ -213,13 +217,14 @@ struct RandomBranch : public BenchDesc {
 
         if (indirect) {
             count_table = {4, 16, 32, 64, 128};
-            target_table = {1,2,4};
+            target_table = {1, 2, 4};
         } else {
             count_table = {16, 32, 64, 128, 256, 512, 1024};
             target_table = {0};
         }
 
-        ret = new table_t("table size (inst x nloop)", count_table.size() * target_table.size() * 3);
+        ret = new table_t("table size (inst x nloop)",
+                          count_table.size() * target_table.size() * 3);
 
         if (this->use_perf_counter) {
             ret->column_label = "hit-rate[%]";
@@ -229,11 +234,13 @@ struct RandomBranch : public BenchDesc {
 
         for (int ti : target_table) {
             for (int i : count_table) {
-                auto add_label = [g, &row_label, ret, &row, this](int i0, int i1, int ti) {
+                auto add_label = [g, &row_label, ret, &row,
+                                  this](int i0, int i1, int ti) {
                     auto r = run1(g, i0, i1, this->gm, this->indirect, ti);
                     char buf[512];
                     if (this->indirect) {
-                        sprintf(buf, "%6d x %6d [nindirect_taregt=%d]", i0, i1, ti);
+                        sprintf(buf, "%6d x %6d [nindirect_taregt=%d]", i0, i1,
+                                ti);
                     } else {
                         sprintf(buf, "%6d x %6d", i0, i1);
                     }
@@ -347,7 +354,6 @@ std::unique_ptr<BenchDesc> get_indirect_branch_desc() {
 std::unique_ptr<BenchDesc> get_indirect_branch_hit_desc() {
     return std::unique_ptr<BenchDesc>();
 }
-
 
 #endif
 

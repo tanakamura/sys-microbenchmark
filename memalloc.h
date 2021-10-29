@@ -56,6 +56,26 @@ inline void free_executable(ExecutableMemory const *m) {
 #endif
 
 #elif defined WINDOWS
+struct ExecutableMemory {
+    void *p;
+};
+
+inline ExecutableMemory alloc_exeutable(size_t sz) {
+    void *p = VirtualAlloc(NULL, sz, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    if (p == NULL) {
+        perror("alloc");
+        exit(1);
+    }
+
+    ExecutableMemory ret;
+    ret.p = p;
+    return ret;
+}
+
+inline void free_executable(ExecutableMemory const *m) {
+    VirtualFree(m->p, 0, MEM_RELEASE);
+}
+
 inline void *aligned_calloc(size_t align, size_t size) {
     void *p = _aligned_malloc(size, align);
     memset(p, 0, size);
