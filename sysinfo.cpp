@@ -53,8 +53,6 @@ SysInfo get_sysinfo(GlobalState const *g) {
     obj["cpuid"] = picojson::value("unknown");
 #endif
 
-    puts(cpuinfo_get_package(0)->name);
-
     {
         char buffer[256];
         time_t now = time(NULL);
