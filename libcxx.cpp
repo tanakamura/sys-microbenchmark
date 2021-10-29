@@ -1,4 +1,6 @@
 #include "sys-features.h"
+#include "sys-microbenchmark.h"
+
 #include <chrono>
 #include <map>
 #include <random>
@@ -13,7 +15,6 @@
 #include "barrier.h"
 #include "oneshot_timer.h"
 #include "simple-run.h"
-#include "sys-microbenchmark.h"
 #include "table.h"
 
 namespace smbm {

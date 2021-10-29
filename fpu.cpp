@@ -151,6 +151,7 @@ struct FPU : public BenchDesc {
 
         count = 0;
 
+#ifdef HAVE_HW_PERF_COUNTER
 #define RUN(F)                                                                 \
     {                                                                          \
         F t;                                                                   \
@@ -159,6 +160,14 @@ struct FPU : public BenchDesc {
         else                                                            \
             (*result)[count++] = run_test_g(g, &t);                     \
     }
+#else
+#define RUN(F)                                                                 \
+    {                                                                          \
+        F t;                                                            \
+        (*result)[count++] = run_test_g(g, &t);                         \
+    }
+#endif
+
         FOR_EACH_TEST(RUN)
 
         return std::unique_ptr<BenchResult>(result);
@@ -196,8 +205,10 @@ struct FPU : public BenchDesc {
 std::unique_ptr<BenchDesc> get_fpu_realtime_desc() {
     return std::unique_ptr<BenchDesc>(new FPU(false));
 }
+#ifdef HAVE_HW_PERF_COUNTER
 std::unique_ptr<BenchDesc> get_fpu_cycle_desc() {
     return std::unique_ptr<BenchDesc>(new FPU(true));
 }
+#endif
 
 } // namespace smbm

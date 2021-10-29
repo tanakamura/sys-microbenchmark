@@ -32,7 +32,7 @@ struct fflush_stdout : public no_arg {
 struct sscanf_double_99999 : public no_arg {
     void run(GlobalState const *g, void *arg) {
         char buffer[] = "99999.0";
-        double v=0;
+        double v = 0;
 
         sscanf(buffer, "%lf", &v);
         if (v != 99999.0) {
@@ -45,7 +45,7 @@ struct sscanf_double_99999 : public no_arg {
 struct sscanf_int_99999 : public no_arg {
     void run(GlobalState const *g, void *arg) {
         char buffer[] = "99999";
-        int v=0;
+        int v = 0;
 
         sscanf(buffer, "%d", &v);
         if (v != 99999) {
@@ -160,12 +160,15 @@ struct log2 : public no_arg {
 struct rand : public no_arg {
     void run(GlobalState const *g, void *arg) { g->dummy_write(0, ::rand()); }
 };
+
+#ifndef NO_SETJMP
 struct setjmp1 : public no_arg {
     void run(GlobalState const *g, void *arg) {
         jmp_buf jb;
         g->dummy_write(0, ::setjmp(jb));
     }
 };
+#endif
 
 static void call_va_start_end(GlobalState const *g, int x, ...) {
     va_list va;
@@ -252,10 +255,9 @@ struct SortData {
     int *cur;
 };
 
-static int
-int_compare(const void *l, const void *r) {
-    int lv = *(int*)l;
-    int rv = *(int*)r;
+static int int_compare(const void *l, const void *r) {
+    int lv = *(int *)l;
+    int rv = *(int *)r;
 
     return lv < rv;
 }
@@ -263,14 +265,12 @@ int_compare(const void *l, const void *r) {
 struct sort {
     int size;
 
-    sort(int size)
-        :size(size)
-    {}
+    sort(int size) : size(size) {}
 
     void *alloc_arg() {
-        int *p = new int [size];
-        for (int i=0; i<size; i++) {
-            p[i] = drand48() * 1024*1024*16;
+        int *p = new int[size];
+        for (int i = 0; i < size; i++) {
+            p[i] = drand48() * 1024 * 1024 * 16;
         }
 
         struct SortData *ret = new SortData;
@@ -281,39 +281,31 @@ struct sort {
     }
 
     void free_arg(void *p) {
-        struct SortData *d = (struct SortData*)p;
+        struct SortData *d = (struct SortData *)p;
 
-        delete [] d->orig;
-        delete [] d->cur;
+        delete[] d->orig;
+        delete[] d->cur;
 
         delete d;
     }
 
     void run(GlobalState const *g, void *arg) {
-        struct SortData *d = (struct SortData*)arg;
+        struct SortData *d = (struct SortData *)arg;
 
-        memcpy(d->cur, d->orig, sizeof(int)*size);
+        memcpy(d->cur, d->orig, sizeof(int) * size);
 
         qsort(d->cur, size, sizeof(int), int_compare);
     }
 };
 
-struct sort1K
-    : public sort
-{
-    sort1K()
-        :sort(1024)
-    {}
+struct sort1K : public sort {
+    sort1K() : sort(1024) {}
 };
-struct sort4
-    : public sort
-{
-    sort4()
-        :sort(4)
-    {}
+struct sort4 : public sort {
+    sort4() : sort(4) {}
 };
 
-#define FOR_EACH_TEST(F)                                                       \
+#define FOR_EACH_TEST_LIBC(F)                                                  \
     F(atoi_99999)                                                              \
     F(fflush_stdout)                                                           \
     F(sscanf_double_99999)                                                     \
@@ -323,8 +315,8 @@ struct sort4
     F(sprintf_int_99999)                                                       \
     F(malloc_free_1byte)                                                       \
     F(malloc_free_1MiB)                                                        \
-    F(sort1K)                                                           \
-    F(sort4)                                                            \
+    F(sort1K)                                                                  \
+    F(sort4)                                                                   \
     F(cos1)                                                                    \
     F(cos0)                                                                    \
     F(cosPI)                                                                   \
@@ -333,7 +325,6 @@ struct sort4
     F(log10)                                                                   \
     F(log2)                                                                    \
     F(rand)                                                                    \
-    F(setjmp1)                                                                 \
     F(va_start_end)                                                            \
     F(clock)                                                                   \
     F(time)                                                                    \
@@ -341,6 +332,19 @@ struct sort4
     F(localtime)                                                               \
     F(mktime)                                                                  \
     F(asctime)
+
+#define FOR_EACH_TEST_SETJMP(F) F(setjmp1)
+
+#ifdef NO_SETJMP
+#define FOR_EACH_TEST(F)                        \
+    FOR_EACH_TEST_LIBC(F)                       \
+
+#else
+#define FOR_EACH_TEST(F)                        \
+    FOR_EACH_TEST_LIBC(F)                       \
+    FOR_EACH_TEST_SETJMP(F)
+
+#endif
 
 struct LIBC : public BenchDesc {
     LIBC() : BenchDesc("libc") {}

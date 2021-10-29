@@ -2,9 +2,9 @@ set(CMAKE_SYSTEM_NAME Wasi)
 set(CMAKE_SYSTEM_PROCESSOR wasm32)
 
 set(triple wasm32-wasi)
-set(CMAKE_C_COMPILER clang --sysroot=/opt/wasi-sdk/wasi-sysroot)
+set(CMAKE_C_COMPILER ${WASI_SDK_PATH}/bin/clang --sysroot=${WASI_SDK_PATH}/share/wasi-sysroot)
 set(CMAKE_C_COMPILER_TARGET ${triple})
-set(CMAKE_CXX_COMPILER clang --sysroot=/opt/wasi-sdk/wasi-sysroot)
+set(CMAKE_CXX_COMPILER ${WASI_SDK_PATH}/bin/clang++ --sysroot=${WASI_SDK_PATH}/share/wasi-sysroot)
 set(CMAKE_CXX_COMPILER_TARGET ${triple})
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")

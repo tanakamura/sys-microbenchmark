@@ -363,10 +363,4 @@ std::string byte1024(size_t sz, int prec) {
     return oss.str();
 }
 
-#ifdef EMSCRIPTEN
-
-EM_JS(double, get_js_tick, (), { return performance.now(); });
-
-#endif
-
 } // namespace smbm

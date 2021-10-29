@@ -50,6 +50,7 @@ template <typename F> double run_test_g(const GlobalState *g, F *f) {
     return ret;
 }
 
+#ifdef HAVE_HW_PERF_COUNTER
 template <typename F> double run_test_g_cycle(const GlobalState *g, F *f) {
     auto a = f->alloc_arg();
 
@@ -73,6 +74,7 @@ template <typename F> double run_test_g_cycle(const GlobalState *g, F *f) {
 
     return ret;
 }
+#endif
 
 template <typename F> double run_test_unroll32(const GlobalState *g, F *f) {
     auto a = f->alloc_arg();

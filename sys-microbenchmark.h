@@ -5,13 +5,13 @@
 #include <string>
 #include <vector>
 
+#include "picojson.h"
+
 #include "sys-features.h"
 
 #ifdef X86
 #include <x86intrin.h>
 #endif
-
-#include "picojson.h"
 
 namespace smbm {
 
@@ -48,11 +48,11 @@ struct BenchDesc {
     virtual bool available(GlobalState const *g) { return true; }
 };
 
-#define FOR_EACH_BENCHMARK_LIST(F)                                             \
+#define FOR_EACH_BENCHMARK_LIST_ALL(F, F_CYCLE)                                \
     F(idiv32)                                                                  \
     F(idiv64)                                                                  \
-    F(idiv32_cycle)                                                            \
-    F(idiv64_cycle)                                                            \
+    F_CYCLE(idiv32_cycle)                                                      \
+    F_CYCLE(idiv64_cycle)                                                      \
     F(syscall)                                                                 \
     F(memory_bandwidth_1thread)                                                \
     F(memory_bandwidth_full_thread)                                            \
@@ -79,10 +79,19 @@ struct BenchDesc {
     F(libc)                                                                    \
     F(libcxx)                                                                  \
     F(fpu_realtime)                                                            \
-    F(fpu_cycle)
+    F_CYCLE(fpu_cycle)
+
+#define UNDEF_ENTRY(B)
+
+#ifdef HAVE_HW_PERF_COUNTER
+#define FOR_EACH_BENCHMARK_LIST(F) \
+    FOR_EACH_BENCHMARK_LIST_ALL(F,F)
+#else
+#define FOR_EACH_BENCHMARK_LIST(F) \
+    FOR_EACH_BENCHMARK_LIST_ALL(F,UNDEF_ENTRY)
+#endif
 
 #define DEFINE_ENTRY(B) std::unique_ptr<BenchDesc> get_##B##_desc();
-
 FOR_EACH_BENCHMARK_LIST(DEFINE_ENTRY)
 
 #define REP8(A) A A A A A A A A
@@ -154,7 +163,7 @@ struct ostimer_value {
 
 #elif (defined EMSCRIPTEN)
 
-extern "C" double get_js_tick();
+extern double get_js_tick();
 
 struct ostimer_value {
     double v;
@@ -235,7 +244,7 @@ struct userland_timer_value {
 typedef uint64_t perf_counter_value_t;
 struct ProcessorTable;
 
-std::vector<std::shared_ptr<BenchDesc> > get_all_benchmark_list();
+std::vector<std::shared_ptr<BenchDesc>> get_all_benchmark_list();
 
 struct ProcessorInfo {
     std::string cpuid;
@@ -248,19 +257,18 @@ struct SysInfo {
     std::string os;
     std::string date;
     std::vector<std::string> vulnerabilities;
-    //std::vector<ProcessorInfo> procs;
+    // std::vector<ProcessorInfo> procs;
     std::string cpuid;
     bool perf_counter_available;
     double ooo_ratio;
 };
 
-typedef std::map< std::string, result_ptr_t > result_set_t;
+typedef std::map<std::string, result_ptr_t> result_set_t;
 
 struct ResultList {
     struct SysInfo sysinfo;
     result_set_t results;
 };
-
 
 struct GlobalState {
     std::unique_ptr<ProcessorTable> proc_table;
@@ -275,9 +283,7 @@ struct GlobalState {
 #endif
 
     double ooo_ratio;
-    bool has_ooo() const {
-        return ooo_ratio < 1.2;
-    }
+    bool has_ooo() const { return ooo_ratio < 1.2; }
 
 #ifdef HAVE_HW_PERF_COUNTER
     int perf_fd_cycle;
@@ -345,10 +351,7 @@ struct ResultListSet {
 void deserialize_result(ResultListSet &dst, picojson::value const &r);
 picojson::value serialize_result(ResultListSet const &src);
 
-void merge_result(ResultListSet &dst,
-                  result_set_t const &insert_result,
+void merge_result(ResultListSet &dst, result_set_t const &insert_result,
                   SysInfo const &insert_sysinfo);
 
 } // namespace smbm
-
-

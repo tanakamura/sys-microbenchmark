@@ -10,6 +10,7 @@
 
 #include <getopt.h>
 
+#ifndef NO_MAIN
 static void
 run(smbm::GlobalState *g,
     smbm::result_set_t *this_obj,
@@ -114,3 +115,4 @@ int main(int argc, char **argv) {
         }
     }
 }
+#endif

@@ -51,6 +51,8 @@ add_library(libsys-microbenchmark
 
   unknown-arch.cpp
 
+  emscripten.cpp
+
   )
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
@@ -68,6 +70,8 @@ elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
   set(HAVE_HWLOC OFF)
   set(HAVE_CPUINFO ON)
+
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNO_MAIN -DNO_SETJMP")
 else()
   set(HAVE_HWLOC OFF)
   set(HAVE_CPUINFO OFF)
@@ -136,3 +140,8 @@ target_link_libraries(timer-test libsys-microbenchmark)
 add_test(NAME timer COMMAND $<TARGET_FILE:timer-test>)
 
 add_subdirectory(tools)
+
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
+  set_target_properties(sys-microbenchmark PROPERTIES LINK_FLAGS "-s LLD_REPORT_UNDEFINED -s EXPORTED_FUNCTIONS=\"['_em_entry']\"")
+  set_target_properties(timer-test PROPERTIES LINK_FLAGS "-s LLD_REPORT_UNDEFINED")
+endif()
