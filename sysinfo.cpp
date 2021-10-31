@@ -115,7 +115,7 @@ SysInfo get_sysinfo(GlobalState const *g) {
 #elif defined WINDOWS
     ret.os = "Windows";
 
-#elif defined __wasi__
+#elif defined WASI
     ret.os = "wasi";
 
 #else

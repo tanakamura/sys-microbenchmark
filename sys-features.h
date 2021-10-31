@@ -67,7 +67,7 @@
 #define HAVE_DYNAMIC_CODE_GENERATOR
 #endif
 
-#ifdef __wasi__
+#ifdef WASI
 #define HAVE_CLOCK_GETTIME
 #else
 

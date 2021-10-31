@@ -10,7 +10,7 @@
 #include <sys/syscall.h>
 #endif
 
-#ifdef EMSCRIPTEN
+#ifdef JS_INTERFACE
 #include <emscripten.h>
 #endif
 

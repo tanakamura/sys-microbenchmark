@@ -1,0 +1,8 @@
+[wrap-file]
+directory = hwloc-2.6.0
+
+source_url = https://download.open-mpi.org/release/hwloc/v2.6/hwloc-2.6.0.tar.bz2
+source_filename = hwloc-2.6.0.tar.bz2
+source_hash = e1f073e44e28c296ff848dead5e9bd6e2426b77f95ead1792358958e859fa83a
+
+patch_directory = hwloc

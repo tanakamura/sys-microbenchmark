@@ -11,7 +11,7 @@
 #include <x86intrin.h>
 #endif
 
-#ifdef EMSCRIPTEN
+#ifdef JS_INTERFACE
 #include <emscripten/html5.h>
 #endif
 
@@ -161,7 +161,7 @@ struct ostimer_value {
     static const char *name() { return "QueryPerformanceCounter"; }
 };
 
-#elif (defined EMSCRIPTEN)
+#elif (defined JS_INTERFACE)
 
 struct ostimer_value {
     double v;
@@ -323,7 +323,7 @@ struct GlobalState {
     double ostimer_freq;
 #endif
 
-#ifdef EMSCRIPTEN
+#ifdef JS_INTERFACE
     /* usec */
     static constexpr double ostimer_freq = 1e6;
 #endif

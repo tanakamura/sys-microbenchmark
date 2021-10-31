@@ -1,6 +1,3 @@
 [submodule "hwloc"]
-	path = hwloc
+	path = subprojects/hwloc
 	url = https://github.com/open-mpi/hwloc.git
-[submodule "cpuinfo"]
-	path = cpuinfo
-	url = https://github.com/pytorch/cpuinfo.git

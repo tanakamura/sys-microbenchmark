@@ -14,7 +14,7 @@
 
 namespace smbm {
 
-#if (defined POSIX) || (defined __wasi__) || (defined EMSCRIPTEN)
+#if (defined POSIX) || (defined WASI) || (defined EMSCRIPTEN)
 inline void *aligned_calloc(size_t align, size_t size) {
     void *p = 0;
     posix_memalign(&p, align, size);

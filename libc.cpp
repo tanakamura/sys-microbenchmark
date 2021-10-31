@@ -307,33 +307,42 @@ struct sort4 : public sort {
     sort4() : sort(4) {}
 };
 
-#define FOR_EACH_TEST_LIBC(F)                                                  \
-    F(atoi_99999)                                                              \
-    F(fflush_stdout)                                                           \
-    F(sscanf_double_99999)                                                     \
-    F(sscanf_int_99999)                                                        \
-    F(sprintf_double_99999)                                                    \
-    F(sprintf_double_033333)                                                   \
-    F(sprintf_int_99999)                                                       \
-    F(malloc_free_1byte)                                                       \
-    F(malloc_free_1MiB)                                                        \
-    F(sort1K)                                                                  \
-    F(sort4)                                                                   \
-    F(cos1)                                                                    \
-    F(cos0)                                                                    \
-    F(cosPI)                                                                   \
-    F(exp)                                                                     \
-    F(log)                                                                     \
-    F(log10)                                                                   \
-    F(log2)                                                                    \
-    F(rand)                                                                    \
-    F(va_start_end)                                                            \
-    F(clock)                                                                   \
-    F(time)                                                                    \
-    F(gmtime)                                                                  \
-    F(localtime)                                                               \
-    F(mktime)                                                                  \
-    F(asctime)
+#define FOR_EACH_TEST_LIBC_BASE(F0,F1)                                       \
+    F0(atoi_99999)                                                              \
+    F0(fflush_stdout)                                                           \
+    F0(sscanf_double_99999)                                                     \
+    F0(sscanf_int_99999)                                                        \
+    F0(sprintf_double_99999)                                                    \
+    F0(sprintf_double_033333)                                                   \
+    F0(sprintf_int_99999)                                                       \
+    F0(malloc_free_1byte)                                                       \
+    F0(malloc_free_1MiB)                                                        \
+    F0(sort1K)                                                                  \
+    F0(sort4)                                                                   \
+    F0(cos1)                                                                    \
+    F0(cos0)                                                                    \
+    F0(cosPI)                                                                   \
+    F0(exp)                                                                     \
+    F0(log)                                                                     \
+    F0(log10)                                                                   \
+    F0(log2)                                                                    \
+    F0(rand)                                                                    \
+    F0(va_start_end)                                                            \
+    F0(clock)                                                                   \
+    F0(time)                                                                    \
+    F0(gmtime)                                                                  \
+    F0(localtime)                                                               \
+    F0(mktime)                                                                  \
+    F1(asctime)
+
+
+#define IGNORE(X)
+
+#ifdef WASI
+#define FOR_EACH_TEST_LIBC(F) FOR_EACH_TEST_LIBC_BASE(F,IGNORE)
+#else
+#define FOR_EACH_TEST_LIBC(F) FOR_EACH_TEST_LIBC_BASE(F,F)
+#endif
 
 #define FOR_EACH_TEST_SETJMP(F) F(setjmp1)
 

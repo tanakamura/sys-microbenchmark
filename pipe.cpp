@@ -54,7 +54,7 @@ struct Loop {
     virtual void body(char *&p) = 0;
     virtual void setup(char *&p) {}
     Loop() { m = alloc_exeutable(1024 * 1024 * 16); }
-    ~Loop() { free_executable(&m); }
+    virtual ~Loop() { free_executable(&m); }
 
     virtual int loop_count() { return 1024; }
     void gen() {

@@ -3,7 +3,7 @@
 #include "table.h"
 #include "simple-run.h"
 
-#if (defined POSIX) || (defined __wasi__)
+#if (defined POSIX) || (defined WASI)
 #include <fcntl.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -56,7 +56,7 @@ struct open_close : public no_arg {
 #else
         int fd = open(".", O_RDONLY);
         if (fd < 0) {
-            perror("open");
+            perror("open .");
             exit(1);
         }
         close(fd);

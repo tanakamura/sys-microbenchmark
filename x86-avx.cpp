@@ -124,3 +124,5 @@ uint64_t busy_fma64x4(uint64_t zero, oneshot_timer *ot) {
 }
 
 #endif
+
+int a;
