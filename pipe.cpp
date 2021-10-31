@@ -101,7 +101,7 @@ struct BufferEstimator : public Loop {
 
     int loop_counter_reg, p0_reg, p1_reg, p2_reg;
 
-    int loop_count() { return 1024; }
+    int loop_count() override { return 1024; }
 
     BufferEstimator(Buffer p, int depth, Chain *l, Chain *l2)
         : pipe(p), depth(depth), random_data0(l), random_data1(l2) {
@@ -185,11 +185,11 @@ struct BufferEstimator : public Loop {
 
     void body(char *&p) {
         for (int i = 0; i < window_per_loop; i++) {
-            for (int i=0; i<load_chain_num; i++) {
+            for (int i = 0; i < load_chain_num; i++) {
                 gen_load64(p, p0_reg, p0_reg);
             }
             gen_target(p, p0_reg);
-            for (int i=0; i<load_chain_num; i++) {
+            for (int i = 0; i < load_chain_num; i++) {
                 gen_load64(p, p1_reg, p1_reg);
             }
             gen_target(p, p1_reg);
@@ -219,8 +219,8 @@ struct BufferEstimator : public Loop {
                 run_func();
                 auto c1 = g->get_hw_cpucycle();
 
-                auto d = c1-c0;
-                min = std::min(min,d);
+                auto d = c1 - c0;
+                min = std::min(min, d);
             }
 
             return min / (double)(loop_count() * window_per_loop);
@@ -234,9 +234,9 @@ struct BufferEstimator : public Loop {
                 run_func();
                 auto c1 = userland_timer_value::get();
 
-                auto d = c1-c0;
+                auto d = c1 - c0;
 
-                min = std::min(min,d);
+                min = std::min(min, d);
             }
 
             return (1e9 * g->userland_timer_delta_to_sec(min)) /
@@ -246,7 +246,7 @@ struct BufferEstimator : public Loop {
 };
 
 struct SchedEstimator : public Loop {
-    static constexpr int dependency_length = 512*3;
+    static constexpr int dependency_length = 512 * 3;
     SchedPipe pipe;
     int overlap;
     bool multi_chain;
@@ -327,8 +327,8 @@ struct SchedEstimator : public Loop {
                 run_func();
                 auto c1 = g->get_hw_cpucycle();
 
-                auto d = c1-c0;
-                min = std::min(d,min);
+                auto d = c1 - c0;
+                min = std::min(d, min);
             }
 
             return min / (double)loop_count();
@@ -340,8 +340,8 @@ struct SchedEstimator : public Loop {
                 run_func();
                 auto c1 = userland_timer_value::get();
 
-                auto d = c1-c0;
-                min = std::min(d,min);
+                auto d = c1 - c0;
+                min = std::min(d, min);
             }
 
             return (1e9 * g->userland_timer_delta_to_sec(min)) /
@@ -350,21 +350,19 @@ struct SchedEstimator : public Loop {
     }
 };
 
-static inline int
-reverse_bit(int bits, int nbits)
-{
+static inline int reverse_bit(int bits, int nbits) {
     int ret = 0;
-    for (int i=0; i<nbits; i++) {
-        if (bits & (1<<i)) {
-            ret |= 1<<(nbits-i-1);
+    for (int i = 0; i < nbits; i++) {
+        if (bits & (1 << i)) {
+            ret |= 1 << (nbits - i - 1);
         }
     }
 
     return ret;
 }
 
-struct Pipe : public BenchDesc {
-    Pipe() : BenchDesc("pipe") {}
+struct CPUCorePipeline : public BenchDesc {
+    CPUCorePipeline() : BenchDesc("cpucore_pipeline") {}
 
     typedef Table1D<int, std::string> table_t;
 
@@ -375,11 +373,11 @@ struct Pipe : public BenchDesc {
         int max_depth = 400;
 
         if (1) {
-            int nchain = 1024*1024*16;
+            int nchain = 1024 * 1024 * 16;
             std::vector<Chain> random_ptr(nchain);
 
             int pagesize = 4096;
-            int npage = (nchain*sizeof(Chain)) / pagesize;
+            int npage = (nchain * sizeof(Chain)) / pagesize;
 
             int chain_per_line = CACHELINE_SIZE / sizeof(Chain);
             int line_per_page = pagesize / CACHELINE_SIZE;
@@ -388,7 +386,7 @@ struct Pipe : public BenchDesc {
             int lpp_bit = __builtin_ctz(line_per_page);
             int cpl_bit = __builtin_ctz(chain_per_line);
 
-            auto shuf_bit = [npage_bit,lpp_bit,cpl_bit](int bits) {
+            auto shuf_bit = [npage_bit, lpp_bit, cpl_bit](int bits) {
 #if 0
                 int ci = bits & ((1<<cpl_bit)-1);
 
@@ -400,17 +398,17 @@ struct Pipe : public BenchDesc {
 
                 return reverse_bit(pi,npage_bit) | (reverse_bit(li,lpp_bit)<<npage_bit) | (reverse_bit(ci,cpl_bit) << (lpp_bit + npage_bit));
 #else
-                return reverse_bit(bits, npage_bit+lpp_bit+cpl_bit);
+                return reverse_bit(bits, npage_bit + lpp_bit + cpl_bit);
 #endif
             };
 
-            for (int i=0; i<nchain; i++) {
+            for (int i = 0; i < nchain; i++) {
                 int cur = shuf_bit(i);
                 int next = 0;
-                if (i == nchain-1) {
+                if (i == nchain - 1) {
                     next = 0;
                 } else {
-                    next = shuf_bit(i+1);
+                    next = shuf_bit(i + 1);
                 }
 
                 random_ptr[cur].v = next;
@@ -437,12 +435,12 @@ struct Pipe : public BenchDesc {
 
                     double v = ml.run(g);
                     history[di] = v;
-                    //printf("%d,%f\n", di, v);
+                    // printf("%d,%f\n", di, v);
                 }
 
                 double min = 1e9;
                 /* remove spike */
-                for (int di=max_depth-1; di>=start_depth; di--) {
+                for (int di = max_depth - 1; di >= start_depth; di--) {
                     min = std::min(history[di], min);
                     history[di] = min;
                 }
@@ -481,7 +479,7 @@ struct Pipe : public BenchDesc {
             double instr_ratio =
                 (1.0 / SchedEstimator::dependency_length) * 1.5;
 
-            for (bool multi : {true,false}) {
+            for (bool multi : {true, false}) {
                 for (int pi = 0; pi < (int)SchedPipe::NUM_PIPE; pi++) {
                     std::vector<double> history(max_depth);
                     for (int depth = start_depth; depth < max_depth; depth++) {
@@ -489,7 +487,7 @@ struct Pipe : public BenchDesc {
                         se.gen();
                         double v = se.run(g);
                         history[depth] = v;
-                        //printf("%d:%f\n", depth, v);
+                        // printf("%d:%f\n", depth, v);
                     }
 
                     double final_sum = 0;
@@ -501,7 +499,7 @@ struct Pipe : public BenchDesc {
 
                     /* remove spike */
                     double minval = 1e9;
-                    for (int depth=start_depth; depth < max_depth; depth++) {
+                    for (int depth = start_depth; depth < max_depth; depth++) {
                         minval = std::min(minval, history[depth]);
                         history[depth] = minval;
                     }
@@ -521,7 +519,7 @@ struct Pipe : public BenchDesc {
                             break;
                         }
                     }
-                    
+
                     if (multi) {
                         labels.push_back(std::string(pipe_name_table[pi]) +
                                          "(multi scheduler depth)");
@@ -531,7 +529,9 @@ struct Pipe : public BenchDesc {
                     }
 
                     if (find_pos == 3) {
-                        printf("warning : scheduler depth is tiny, this processor's pipe may be in-order. The result is unreliable\n");
+                        printf("warning : scheduler depth is tiny, this "
+                               "processor's pipe may be in-order. The result "
+                               "is unreliable\n");
                     }
 
                     results.push_back(find_pos);
@@ -550,26 +550,24 @@ struct Pipe : public BenchDesc {
         return result_t(table);
     }
 
-    int double_precision() { return 2; }
+    int double_precision() override { return 2; }
 
-    bool available(const GlobalState *g) override {
-        return g->has_ooo();
-    }
+    bool available(const GlobalState *g) override { return g->has_ooo(); }
 
-    virtual result_t parse_json_result(picojson::value const &v) {
+    virtual result_t parse_json_result(picojson::value const &v) override {
         return result_t(table_t::parse_json_result(v));
     }
 };
 
 } // namespace
 
-std::unique_ptr<BenchDesc> get_pipe_desc() {
-    return std::unique_ptr<BenchDesc>(new Pipe());
+std::unique_ptr<BenchDesc> get_cpucore_pipeline_desc() {
+    return std::unique_ptr<BenchDesc>(new CPUCorePipeline());
 }
 
 #else
 
-std::unique_ptr<BenchDesc> get_pipe_desc() {
+std::unique_ptr<BenchDesc> get_cpucore_pipeline_desc() {
     return std::unique_ptr<BenchDesc>();
 }
 

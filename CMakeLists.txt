@@ -51,9 +51,19 @@ add_library(libsys-microbenchmark
 
   unknown-arch.cpp
 
-  emscripten.cpp
+  lwabi.cpp
 
+  emscripten.cpp
   )
+
+set(LWABI_EXPORT_LIST
+  smbm_lwabi_get_num_active_benchmark_list
+  smbm_lwabi_get_benchmark_name
+)
+
+if (${CMAKE_SYSTEM_NAME} STREQUAL ${CMAKE_HOST_SYSTEM_NAME})
+  set(SELF_COMPILE TRUE)
+endif()
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   set(HAVE_HWLOC ON)
@@ -139,7 +149,9 @@ target_link_libraries(sys-microbenchmark libsys-microbenchmark)
 
 add_executable(timer-test
   timer-test.cpp)
-target_link_libraries(timer-test libsys-microbenchmark)
+target_link_libraries(timer-test
+  libsys-microbenchmark
+  )
 
 
 add_test(NAME timer COMMAND $<TARGET_FILE:timer-test>)
@@ -147,6 +159,35 @@ add_test(NAME timer COMMAND $<TARGET_FILE:timer-test>)
 add_subdirectory(tools)
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Emscripten")
-  set_target_properties(sys-microbenchmark PROPERTIES LINK_FLAGS "-s LLD_REPORT_UNDEFINED -s EXPORTED_FUNCTIONS=\"['_em_entry']\"")
+  set(EMSCRIPTEN_EXPORT
+    "\"["
+    )
+
+  list(POP_FRONT LWABI_EXPORT_LIST EXPORT1)
+
+  set(EMSCRIPTEN_EXPORT "${EMSCRIPTEN_EXPORT}'_${EXPORT1}'")
+
+  foreach(EXPORT ${LWABI_EXPORT_LIST})
+    set(EMSCRIPTEN_EXPORT "${EMSCRIPTEN_EXPORT},'_${EXPORT}'")
+  endforeach()
+
+  set(EMSCRIPTEN_EXPORT
+    "${EMSCRIPTEN_EXPORT}]\""
+    )
+
+  set_target_properties(sys-microbenchmark PROPERTIES LINK_FLAGS
+    " \
+--bind \
+-s LLD_REPORT_UNDEFINED \
+-s WASM=1 \
+-s NO_EXIT_RUNTIME=1 \
+"
+)
   set_target_properties(timer-test PROPERTIES LINK_FLAGS "-s LLD_REPORT_UNDEFINED")
+endif()
+
+if (SELF_COMPILE)
+  add_executable(merge-result merge-result.cpp)
+
+  target_link_libraries(merge-result libsys-microbenchmark)
 endif()

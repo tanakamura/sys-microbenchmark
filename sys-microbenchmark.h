@@ -11,6 +11,10 @@
 #include <x86intrin.h>
 #endif
 
+#ifdef EMSCRIPTEN
+#include <emscripten/html5.h>
+#endif
+
 namespace smbm {
 
 constexpr int PRINT_DOUBLE_PRECISION = 5;
@@ -73,7 +77,7 @@ struct BenchDesc {
     F(cos_branch_hit)                                                          \
     F(indirect_branch_hit)                                                     \
     F(instructions)                                                            \
-    F(pipe)                                                                    \
+    F(cpucore_pipeline)                                                        \
     F(libc)                                                                    \
     F(libcxx)                                                                  \
     F(fpu_realtime)                                                            \
@@ -82,11 +86,9 @@ struct BenchDesc {
 #define UNDEF_ENTRY(B)
 
 #ifdef HAVE_HW_PERF_COUNTER
-#define FOR_EACH_BENCHMARK_LIST(F) \
-    FOR_EACH_BENCHMARK_LIST_ALL(F,F)
+#define FOR_EACH_BENCHMARK_LIST(F) FOR_EACH_BENCHMARK_LIST_ALL(F, F)
 #else
-#define FOR_EACH_BENCHMARK_LIST(F) \
-    FOR_EACH_BENCHMARK_LIST_ALL(F,UNDEF_ENTRY)
+#define FOR_EACH_BENCHMARK_LIST(F) FOR_EACH_BENCHMARK_LIST_ALL(F, UNDEF_ENTRY)
 #endif
 
 #define DEFINE_ENTRY(B) std::unique_ptr<BenchDesc> get_##B##_desc();
@@ -161,8 +163,6 @@ struct ostimer_value {
 
 #elif (defined EMSCRIPTEN)
 
-extern double get_js_tick();
-
 struct ostimer_value {
     double v;
 
@@ -173,7 +173,7 @@ struct ostimer_value {
     }
 
     static ostimer_value get() {
-        double v = get_js_tick();
+        double v = emscripten_performance_now();
         ostimer_value ret;
         ret.v = v;
         return ret;
