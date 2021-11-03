@@ -1,8 +1,8 @@
-#include "sys-features.h"
 #include "cpu-feature.h"
 #include "memalloc.h"
 #include "oneshot_timer.h"
 #include "simple-run.h"
+#include "sys-features.h"
 #include "sys-microbenchmark.h"
 #include "table.h"
 
@@ -20,12 +20,14 @@ namespace {
 
 #else
 
-#define FOR_EACH_TEST(F)                        \
+#define FOR_EACH_TEST(F)
 
 #endif
 
-struct Instruction : public BenchDesc {
-    Instruction() : BenchDesc("instruction") {}
+typedef Table1DBenchDesc<double, std::string> parent_t;
+
+struct Instruction : public parent_t {
+    Instruction() : parent_t("instruction") {}
 
     virtual result_t run(GlobalState const *g) override {
         int count = 0;
@@ -36,8 +38,7 @@ struct Instruction : public BenchDesc {
 
         FOR_EACH_TEST(INC_COUNT);
 
-        typedef Table1D<double, std::string> result_t;
-        result_t *result = new result_t("test_name", count);
+        table_t *result = new table_t("test_name", count);
 
 #define NAME(F, T)                                                             \
     if (T()) {                                                                 \
@@ -59,9 +60,6 @@ struct Instruction : public BenchDesc {
         FOR_EACH_TEST(RUN)
 
         return std::unique_ptr<BenchResult>(result);
-    }
-    result_t parse_json_result(picojson::value const &v) override {
-        return result_t(Table1D<double, std::string>::parse_json_result(v));
     }
     bool available(GlobalState const *g) override {
 #if (defined X86) || (defined AARCH64)

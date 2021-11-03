@@ -50,6 +50,8 @@ struct BenchDesc {
     virtual bool available(GlobalState const *g) { return true; }
 
     const std::string &get_name() const { return name; }
+
+    virtual std::vector<double> compare(std::vector< result_ptr_t > const &results) = 0;
 };
 
 #define FOR_EACH_BENCHMARK_LIST_ALL(F, F_CYCLE)                                \

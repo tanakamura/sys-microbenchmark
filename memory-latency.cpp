@@ -1,20 +1,20 @@
 #include "oneshot_timer.h"
 #include "sys-microbenchmark.h"
 #include "table.h"
-#include <unistd.h>
 #include <algorithm>
 #include <random>
+#include <unistd.h>
 
 namespace smbm {
 
-struct MemoryLatency : public BenchDesc {
-    typedef Table1D<double, int> table_t;
+namespace {
+typedef Table1DBenchDesc<double, int> parent_t;
 
+struct MemoryLatency : public parent_t {
     bool has_dep;
 
     MemoryLatency(bool has_dep)
-        : BenchDesc(has_dep ? "random-access-seq"
-                            : "random-access-para"),
+        : parent_t(has_dep ? "random-access-seq" : "random-access-para"),
           has_dep(has_dep) {}
 
     virtual result_t run(GlobalState const *g) override {
@@ -30,12 +30,12 @@ struct MemoryLatency : public BenchDesc {
         result->column_label = "nsec/access";
         result->row_label = range_label;
 
-        for (int i=0; i<(int)range_cands.size(); i++) {
+        for (int i = 0; i < (int)range_cands.size(); i++) {
             int x = range_cands[i];
             std::vector<int> ptr(x);
             std::vector<int> v100(x, 100);
 
-            for (int i=0; i<x; i++) {
+            for (int i = 0; i < x; i++) {
                 ptr[i] = i;
             }
 
@@ -52,11 +52,11 @@ struct MemoryLatency : public BenchDesc {
                 int pos = 0;
                 int cur = 0;
                 int first = ptr[cur];
-                while (! ot.test_end()) {
+                while (!ot.test_end()) {
                     int next = ptr[cur];
                     sum += next;
                     if (next == first) { // break ring
-                        pos = (pos+1) % x;
+                        pos = (pos + 1) % x;
                         first = ptr[pos];
                         cur = ptr[first];
                     } else {
@@ -66,9 +66,9 @@ struct MemoryLatency : public BenchDesc {
                 }
             } else {
                 int pos = 0;
-                while (! ot.test_end()) {
+                while (!ot.test_end()) {
                     sum += v100[ptr[pos]];
-                    pos = (pos+1) % x;
+                    pos = (pos + 1) % x;
                     count++;
                 }
             }
@@ -76,17 +76,13 @@ struct MemoryLatency : public BenchDesc {
 
             double sec = ot.actual_interval_sec(g);
 
-            result->v[i] = (sec*1e9) / count;
+            result->v[i] = (sec * 1e9) / count;
         }
-
 
         return result_t(result);
     }
-
-    result_t parse_json_result(picojson::value const &v) override {
-        return result_t(table_t::parse_json_result(v));
-    }
 };
+} // namespace
 
 std::unique_ptr<BenchDesc> get_memory_random_access_seq_desc() {
     return std::unique_ptr<BenchDesc>(new MemoryLatency(true));

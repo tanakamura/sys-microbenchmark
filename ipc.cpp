@@ -1,8 +1,8 @@
+#include "cpu-feature.h"
+#include "oneshot_timer.h"
 #include "sys-microbenchmark.h"
 #include "table.h"
 #include "thread.h"
-#include "oneshot_timer.h"
-#include "cpu-feature.h"
 
 namespace smbm {
 namespace {
@@ -28,14 +28,13 @@ struct ThreadInfo {
     uint64_t roundtrip_count;
 };
 
-static void *
-thread_func(void *p)
-{
-    ThreadInfo *ti = (ThreadInfo*)p;
+static void *thread_func(void *p) {
+    ThreadInfo *ti = (ThreadInfo *)p;
     Shared *s = ti->s;
 
     if (ti->cpu != 0) {
-        auto pi = ti->g->proc_table->logical_index_to_processor(ti->cpu, PROC_ORDER_INNER_TO_OUTER);
+        auto pi = ti->g->proc_table->logical_index_to_processor(
+            ti->cpu, PROC_ORDER_INNER_TO_OUTER);
         bind_self_to_1proc(ti->g->proc_table, pi, true);
     }
 
@@ -51,7 +50,7 @@ thread_func(void *p)
         ot.start(ti->g, ti->delay);
         uint64_t count = 0;
 
-        while (! ot.test_end()) {
+        while (!ot.test_end()) {
             s->to_p1 = self_cur;
             wmb();
             self_cur = !self_cur;
@@ -97,16 +96,13 @@ thread_func(void *p)
             wmb();
             self_cur = !self_cur;
         }
-    end:
-        ;
+    end:;
     }
 
     return 0;
 }
 
-static void
-run1(ThreadInfo *ti, int cpu)
-{
+static void run1(ThreadInfo *ti, int cpu) {
     if (cpu == 0) {
         thread_func(ti);
     } else {
@@ -114,36 +110,32 @@ run1(ThreadInfo *ti, int cpu)
     }
 }
 
-static void
-wait1(ThreadInfo *ti, int cpu)
-{
+static void wait1(ThreadInfo *ti, int cpu) {
     if (cpu != 0) {
         wait_thread(ti->t);
     }
 }
 
-
-struct IPC
-    :public BenchDesc
-{
-    typedef Table2D<double,uint32_t,uint32_t> table_t;
+typedef Table2DBenchDesc<double, uint32_t, uint32_t> parent_t;
+struct IPC : public parent_t {
     bool use_yield;
 
     IPC(bool use_yield)
-        :BenchDesc(use_yield?"inter-processor-communication-with-yield":"inter-processor-communication"),
-         use_yield(use_yield)
-    {}
+        : parent_t(use_yield ? "inter-processor-communication-with-yield"
+                             : "inter-processor-communication"),
+          use_yield(use_yield) {}
 
     virtual result_t run(GlobalState const *g) override {
         int max_thread = g->proc_table->get_active_cpu_count();
 
         std::vector<uint32_t> threads;
-        for (int i=0; i<max_thread; i++) {
+        for (int i = 0; i < max_thread; i++) {
             threads.push_back(i);
         }
 
         ThreadInfo ti[2];
-        table_t *result_table(new table_t("thread id","thread id",threads.size(),threads.size()));
+        table_t *result_table(new table_t("thread id", "thread id",
+                                          threads.size(), threads.size()));
 
         Shared s;
 
@@ -162,8 +154,8 @@ struct IPC
         ti[1].s = &s;
         ti[1].use_yield = use_yield;
 
-        for (int t0=0; t0<max_thread; t0++) {
-            for (int t1=0; t1<max_thread; t1++) {
+        for (int t0 = 0; t0 < max_thread; t0++) {
+            for (int t1 = 0; t1 < max_thread; t1++) {
                 if (t1 == t0) {
                     (*result_table)[t0][t1] = 0;
                     continue;
@@ -172,7 +164,6 @@ struct IPC
                     (*result_table)[t0][t1] = (*result_table)[t1][t0];
                     continue;
                 }
-                    
 
                 s.to_p0 = 0;
                 s.to_p1 = 0;
@@ -192,17 +183,14 @@ struct IPC
                 wait1(&ti[0], t0);
                 wait1(&ti[1], t1);
 
-                double ns_per_roundtrip = (ti[0].actual_sec / ti[0].roundtrip_count) * 1e9;
+                double ns_per_roundtrip =
+                    (ti[0].actual_sec / ti[0].roundtrip_count) * 1e9;
 
                 (*result_table)[t0][t1] = ns_per_roundtrip;
             }
         }
 
         return result_t(result_table);
-    }
-
-    result_t parse_json_result(picojson::value const &v) override {
-        return result_t(table_t::parse_json_result(v));
     }
 
     bool available(const GlobalState *g) override {
@@ -214,17 +202,14 @@ struct IPC
 #ifdef HAVE_YIELD_INSTRCUTION
         return true;
 #else
-        return ! this->use_yield;
+        return !this->use_yield;
 #endif
     }
 
-    int double_precision() override {
-        return 1;
-    }
-
+    int double_precision() override { return 1; }
 };
 
-};
+}; // namespace
 
 std::unique_ptr<BenchDesc> get_inter_processor_communication_desc() {
     return std::unique_ptr<BenchDesc>(new IPC(false));
@@ -233,4 +218,4 @@ std::unique_ptr<BenchDesc> get_inter_processor_communication_yield_desc() {
     return std::unique_ptr<BenchDesc>(new IPC(true));
 }
 
-}
+} // namespace smbm

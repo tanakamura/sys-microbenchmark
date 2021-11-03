@@ -168,8 +168,9 @@ static ResultValue run1(const GlobalState *g, int ninst, int nloop,
     return ret;
 }
 
+typedef Table1DBenchDesc<double,std::string> parent_t;
 template<bool static_available>
-struct RandomBranch : public BenchDesc {
+struct RandomBranch : public parent_t {
     GenMethod gm;
     bool use_perf_counter;
     bool indirect;
@@ -212,10 +213,8 @@ struct RandomBranch : public BenchDesc {
     }
 
     RandomBranch(GenMethod m, bool use_perf_counter, bool indirect)
-        : BenchDesc(RandomBranch::get_name(m, use_perf_counter, indirect)),
+        : parent_t(RandomBranch::get_name(m, use_perf_counter, indirect)),
           gm(m), use_perf_counter(use_perf_counter), indirect(indirect) {}
-
-    typedef Table1D<double, std::string> table_t;
 
     virtual result_t run(GlobalState const *g) override {
         table_t *ret;
@@ -274,9 +273,6 @@ struct RandomBranch : public BenchDesc {
         ret->row_label = row_label;
 
         return result_t(ret);
-    }
-    result_t parse_json_result(picojson::value const &v) override {
-        return result_t(table_t::parse_json_result(v));
     }
 
     bool available(GlobalState const *g) override {

@@ -365,10 +365,10 @@ static inline int reverse_bit(int bits, int nbits) {
 }
 #endif
 
-struct CPUCorePipeline : public BenchDesc {
-    CPUCorePipeline() : BenchDesc("cpucore_pipeline") {}
+typedef Table1DBenchDesc<int, std::string> parent_t;
 
-    typedef Table1D<int, std::string> table_t;
+struct CPUCorePipeline : public parent_t {
+    CPUCorePipeline() : parent_t("cpucore_pipeline") {}
 
 #ifdef STATIC_AVAILABLE
     virtual result_t run(GlobalState const *g) override {
@@ -568,10 +568,6 @@ struct CPUCorePipeline : public BenchDesc {
 #endif
 
         return g->has_ooo();
-    }
-
-    virtual result_t parse_json_result(picojson::value const &v) override {
-        return result_t(table_t::parse_json_result(v));
     }
 };
 

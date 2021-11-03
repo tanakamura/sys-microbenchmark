@@ -380,8 +380,10 @@ struct GetFileSize1 : public no_arg {
 
 #endif
 
-struct Syscall : public BenchDesc {
-    Syscall() : BenchDesc("syscall") {}
+typedef Table1DBenchDesc<double, std::string> parent_t;
+
+struct Syscall : public parent_t{
+    Syscall() : parent_t("syscall") {}
 
 #ifdef BAREMETAL
     virtual result_t run(GlobalState const *g) override {
@@ -396,8 +398,7 @@ struct Syscall : public BenchDesc {
 #define INC_COUNT(F) count++;
         FOR_EACH_TEST(INC_COUNT);
 
-        typedef Table1D<double, std::string> result_t;
-        result_t *result = new result_t("test_name", count);
+        table_t *result = new table_t("test_name", count);
 
 #define NAME(F) #F,
 
@@ -417,10 +418,6 @@ struct Syscall : public BenchDesc {
     }
 
 #endif
-
-    virtual result_t parse_json_result(picojson::value const &v) override {
-        return result_t(Table1D<double, std::string>::parse_json_result(v));
-    }
 };
 
 } // namespace

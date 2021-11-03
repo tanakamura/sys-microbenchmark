@@ -418,16 +418,17 @@ struct throw_catch : public no_arg {
     FOR_EACH_TEST_THREAD(F)                                                    \
     FOR_EACH_TEST_EXCEPTIONS(F)
 
-struct LIBCXX : public BenchDesc {
-    LIBCXX() : BenchDesc("libc++") {}
+typedef Table1DBenchDesc<double, std::string> parent_t;
+
+struct LIBCXX : public parent_t {
+    LIBCXX() : parent_t("libc++") {}
 
     virtual result_t run(GlobalState const *g) override {
         int count = 0;
 #define INC_COUNT(F) count++;
         FOR_EACH_TEST(INC_COUNT);
 
-        typedef Table1D<double, std::string> result_t;
-        result_t *result = new result_t("test_name", count);
+        table_t *result = new table_t("test_name", count);
 
 #define NAME(F) #F,
 

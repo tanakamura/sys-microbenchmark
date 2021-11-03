@@ -84,6 +84,11 @@ struct Table2D : public BenchResult {
 
         return r;
     }
+
+    static std::vector<double>
+    compare(std::vector<result_ptr_t> const &results) {
+        return {};
+    }
 };
 
 template <typename T, typename LT> struct Table1D : public BenchResult {
@@ -135,7 +140,13 @@ template <typename T, typename LT> struct Table1D : public BenchResult {
 
         return r;
     }
+
+    static std::vector<double>
+    compare(std::vector<result_ptr_t> const &results) {
+        return {};
+    }
 };
+
 
 inline unsigned int get_column_width(unsigned int x, int) {
     if (x == 0) {
@@ -320,5 +331,34 @@ void dump1d(std::ostream &out, Table1D<T, LT> *t, int double_precision) {
 
     out << "v : " << t->label << '\n';
 }
+
+
+
+template <typename T, typename LT>
+struct Table1DBenchDesc : public BenchDesc {
+    Table1DBenchDesc(std::string const &name) : BenchDesc(name) {}
+    typedef Table1D<T, LT> table_t;
+
+    result_t parse_json_result(picojson::value const &v) override {
+        return result_t(table_t::parse_json_result(v));
+    }
+    std::vector<double> compare(std::vector< result_ptr_t > const &results) override {
+        return table_t::compare(results);
+    }
+};
+
+template <typename T, typename RLT, typename CLT=RLT>
+struct Table2DBenchDesc : public BenchDesc {
+    Table2DBenchDesc(std::string const &name) : BenchDesc(name) {}
+    typedef Table2D<T, RLT, CLT> table_t;
+
+    result_t parse_json_result(picojson::value const &v) override {
+        return result_t(table_t::parse_json_result(v));
+    }
+    std::vector<double> compare(std::vector< result_ptr_t > const &results) override {
+        return table_t::compare(results);
+    }
+};
+
 
 } // namespace smbm

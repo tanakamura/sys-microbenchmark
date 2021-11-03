@@ -486,6 +486,10 @@ struct MemoryBandwidth : public BenchDesc {
             return true;
         }
     }
+
+    std::vector<double> compare(std::vector< result_ptr_t > const &results) override {
+        return table_t::compare(results);
+    }
 };
 
 struct CacheBandwidthResult
@@ -651,6 +655,10 @@ struct CacheBandwidth : public BenchDesc {
 
     virtual result_t parse_json_result(picojson::value const &v) override {
         return result_t(list_t::parse_json_result(v));
+    }
+
+    std::vector<double> compare(std::vector< result_ptr_t > const &results) override {
+        return table_t::compare(results);
     }
 };
 

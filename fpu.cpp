@@ -128,18 +128,18 @@ struct denormal_div
     F(denormal_div)                                 \
     F(normal_div)                                   \
 
+typedef Table1DBenchDesc<double,std::string> parent_t;
 template <bool static_available>
-struct FPU : public BenchDesc {
+struct FPU : public parent_t{
     bool cycle;
-    FPU(bool cycle) : BenchDesc(cycle?"fpu-cycle":"fpu-realtime"), cycle(cycle) {}
+    FPU(bool cycle) : parent_t(cycle?"fpu-cycle":"fpu-realtime"), cycle(cycle) {}
 
     virtual result_t run(GlobalState const *g) override {
         int count = 0;
 #define INC_COUNT(F) count++;
         FOR_EACH_TEST(INC_COUNT);
 
-        typedef Table1D<double, std::string> result_t;
-        result_t *result = new result_t("test_name", count);
+        table_t *result = new table_t("test_name", count);
 
 #define NAME(F) #F,
 
@@ -172,9 +172,6 @@ struct FPU : public BenchDesc {
         FOR_EACH_TEST(RUN)
 
         return std::unique_ptr<BenchResult>(result);
-    }
-    result_t parse_json_result(picojson::value const &v) override {
-        return result_t(Table1D<double, std::string>::parse_json_result(v));
     }
 
     bool available(const GlobalState *g) override {
