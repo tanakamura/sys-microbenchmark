@@ -38,7 +38,7 @@ static int perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu,
 
 static double ooo_check() {
     int data = 0;
-    int n = 1024 * 1024;
+    int n = 1024 * 1024 * 4;
     asm volatile(" " : "+r"(data), "+r"(n));
 
     double delta0, delta1;

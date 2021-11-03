@@ -48,13 +48,15 @@ struct BenchDesc {
     virtual result_t parse_json_result(picojson::value const &v) = 0;
     virtual int double_precision() { return PRINT_DOUBLE_PRECISION; }
     virtual bool available(GlobalState const *g) { return true; }
+
+    const std::string &get_name() const { return name; }
 };
 
 #define FOR_EACH_BENCHMARK_LIST_ALL(F, F_CYCLE)                                \
     F(idiv32)                                                                  \
     F(idiv64)                                                                  \
-    F_CYCLE(idiv32_cycle)                                                      \
-    F_CYCLE(idiv64_cycle)                                                      \
+    F(idiv32_cycle)                                                      \
+    F(idiv64_cycle)                                               \
     F(syscall)                                                                 \
     F(memory_bandwidth_1thread)                                                \
     F(memory_bandwidth_full_thread)                                            \
@@ -81,7 +83,7 @@ struct BenchDesc {
     F(libc)                                                                    \
     F(libcxx)                                                                  \
     F(fpu_realtime)                                                            \
-    F_CYCLE(fpu_cycle)
+    F(fpu_cycle)
 
 #define UNDEF_ENTRY(B)
 
@@ -259,6 +261,15 @@ struct SysInfo {
     std::string cpuid;
     bool perf_counter_available;
     double ooo_ratio;
+
+    const std::string &get_ostimer() const { return ostimer; }
+    const std::string &get_userland_timer() const { return userland_timer; }
+    const std::string &get_os() const { return os; }
+    const std::string &get_date() const { return date; }
+    const std::vector<std::string> &get_vulnerabilities() const { return vulnerabilities; }
+    const std::string &get_cpuid() const { return cpuid; }
+    bool get_perf_counter_available() const { return perf_counter_available; }
+    double get_ooo_ratio() const { return ooo_ratio; }
 };
 
 typedef std::map<std::string, result_ptr_t> result_set_t;
@@ -281,7 +292,7 @@ struct GlobalState {
 #endif
 
     double ooo_ratio;
-    bool has_ooo() const { return ooo_ratio < 1.2; }
+    bool has_ooo() const { return ooo_ratio < 1.4; }
 
 #ifdef HAVE_HW_PERF_COUNTER
     int perf_fd_cycle;

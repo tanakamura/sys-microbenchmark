@@ -139,7 +139,7 @@ libsmbm = static_library(
 )
 
 libsmbm_dep = declare_dependency(
-  link_with : libsmbm,
+  link_whole : libsmbm,
   link_args : libsmbm_link_args,
   compile_args : libsmbm_cpp_args,
 ).as_link_whole()
@@ -156,4 +156,13 @@ if not meson.is_cross_build()
   executable('merge-result',
              'merge-result.cpp',
              dependencies : libsmbm_dep)
+endif
+
+if host_machine.system() == 'emscripten'
+  configure_file(input: 'html/view.html',
+                 output: '@PLAINNAME@',
+                 copy: true)
+  configure_file(input: 'html/view.js',
+                 output: '@PLAINNAME@',
+                 copy: true)
 endif

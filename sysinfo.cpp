@@ -16,6 +16,16 @@
 #include <cpuinfo.h>
 #endif
 
+#ifdef EMSCRIPTEN
+EM_JS(char*, get_browser_name, (), {
+        var jsString = window.navigator.userAgent;
+        var lengthBytes = lengthBytesUTF8(jsString)+1;
+        var stringOnWasmHeap = _malloc(lengthBytes);
+        stringToUTF8(jsString, stringOnWasmHeap, lengthBytes);
+        return stringOnWasmHeap;
+});
+#endif
+
 namespace smbm {
 
 SysInfo get_sysinfo(GlobalState const *g) {
@@ -23,8 +33,6 @@ SysInfo get_sysinfo(GlobalState const *g) {
 
     ret.ostimer = ostimer_value::name();
     ret.userland_timer = userland_timer_value::name();
-
-    std::map<std::string, picojson::value> obj;
 
     ret.perf_counter_available = g->is_hw_perf_counter_available();
     ret.ooo_ratio = g->ooo_ratio;
@@ -49,8 +57,10 @@ SysInfo get_sysinfo(GlobalState const *g) {
 
 #elif defined HAVE_CPUINFO
     ret.cpuid = cpuinfo_get_package(0)->name;
+#elif defined EMSCRIPTEN
+    ret.cpuid = "emscripten";
 #else
-    obj["cpuid"] = picojson::value("unknown");
+    ret.cpuid = "unknown";
 #endif
 
     {
@@ -117,6 +127,13 @@ SysInfo get_sysinfo(GlobalState const *g) {
 
 #elif defined WASI
     ret.os = "wasi";
+
+#elif defined EMSCRIPTEN
+    {
+        char *name = get_browser_name();
+        ret.os = name;
+        free(name);
+    }
 
 #else
     ret.os = "unknown";

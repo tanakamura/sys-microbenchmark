@@ -12,9 +12,9 @@
 
 namespace smbm {
 
-#ifdef _OPENMP
-
 namespace {
+
+#ifdef _OPENMP
 struct no_arg {
     void *alloc_arg() { return nullptr; };
     void free_arg(void *p) {}
@@ -127,7 +127,6 @@ struct parallel_barrier_1K : public no_arg {
     }
 };
 
-} // namespace
 
 #define FOR_EACH_TEST(F)                                                       \
     /*F(nop)*/                                                                 \
@@ -142,10 +141,15 @@ struct parallel_barrier_1K : public no_arg {
     F(parallel_barrier)                                                        \
     F(parallel_barrier_1K)
 
+
+#endif
+
 struct OpenMP : public BenchDesc {
     OpenMP() : BenchDesc("OpenMP") {}
 
     virtual result_t run(GlobalState const *g) override {
+
+#ifdef _OPENMP
         bind_self_to_all(g->proc_table);
 
         int count = 0;
@@ -172,24 +176,29 @@ struct OpenMP : public BenchDesc {
         bind_self_to_first(g->proc_table, true);
 
         return std::unique_ptr<BenchResult>(result);
+
+#else
+        return result_t();
+#endif
     }
-    virtual result_t parse_json_result(picojson::value const &v) {
+    virtual result_t parse_json_result(picojson::value const &v) override {
         return result_t(Table1D<double, std::string>::parse_json_result(v));
     }
+
+    bool available(const GlobalState *g) override {
+#ifdef _OPENMP
+        return true;
+#else
+        return false;
+#endif
+    }
+
 };
+
+} // namespace
 
 std::unique_ptr<BenchDesc> get_openmp_desc() {
     return std::unique_ptr<BenchDesc>(new OpenMP());
 }
 
-#else
-
-std::unique_ptr<BenchDesc> get_openmp_desc() {
-    return std::unique_ptr<BenchDesc>();
-}
-
-#endif
-
-
 } // namespace smbm
-

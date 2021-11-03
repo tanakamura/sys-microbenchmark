@@ -9,8 +9,6 @@
 
 namespace smbm {
 
-#ifdef HAVE_DYNAMIC_CODE_GENERATOR
-
 namespace {
 
 static inline void output4(char *&p, uint32_t v) {
@@ -20,6 +18,7 @@ static inline void output4(char *&p, uint32_t v) {
     *(p++) = (v >> (8 * 3)) & 0xff;
 }
 
+#ifdef HAVE_DYNAMIC_CODE_GENERATOR
 struct Loop {
     typedef int (*loop_func_t)(const char *table, int loop);
 
@@ -37,13 +36,24 @@ struct Loop {
 #elif defined AARCH64
 #include "branch-aarch64.h"
 #else
-#error "loop generator for this architecture is not yet implemented."
+//#error "loop generator for this architecture is not yet implemented."
 #endif
 
     void invoke(char const *table, int nloop) {
         ((loop_func_t)this->em.p)(table, nloop);
     }
 };
+
+
+#else
+struct Loop {
+    Loop(int ninsn, bool indirect_branch, int nindirect_brach_target) {
+    }
+    void invoke(char const *table, int nloop) {
+    }
+};
+
+#endif
 
 struct ResultValue {
     double nsec;
@@ -158,6 +168,7 @@ static ResultValue run1(const GlobalState *g, int ninst, int nloop,
     return ret;
 }
 
+template<bool static_available>
 struct RandomBranch : public BenchDesc {
     GenMethod gm;
     bool use_perf_counter;
@@ -269,6 +280,10 @@ struct RandomBranch : public BenchDesc {
     }
 
     bool available(GlobalState const *g) override {
+        if (!static_available) {
+            return false;
+        }
+
         if (this->use_perf_counter) {
             return g->is_hw_perf_counter_available();
         } else {
@@ -276,85 +291,56 @@ struct RandomBranch : public BenchDesc {
         }
     }
 };
+
+#ifdef HAVE_DYNAMIC_CODE_GENERATOR
+constexpr bool static_available = true;
+#else
+constexpr bool static_available = false;
+#endif
 } // namespace
 
+
 std::unique_ptr<BenchDesc> get_random_branch_desc() {
     return std::unique_ptr<BenchDesc>(
-        new RandomBranch(GenMethod::FULL, false, false));
+        new RandomBranch<static_available>(GenMethod::FULL, false, false));
 }
 std::unique_ptr<BenchDesc> get_inst_random_branch_desc() {
     return std::unique_ptr<BenchDesc>(
-        new RandomBranch(GenMethod::INST, false, false));
+        new RandomBranch<static_available>(GenMethod::INST, false, false));
 }
 std::unique_ptr<BenchDesc> get_iter_random_branch_desc() {
     return std::unique_ptr<BenchDesc>(
-        new RandomBranch(GenMethod::ITER, false, false));
+        new RandomBranch<static_available>(GenMethod::ITER, false, false));
 }
 std::unique_ptr<BenchDesc> get_cos_branch_desc() {
     return std::unique_ptr<BenchDesc>(
-        new RandomBranch(GenMethod::COS, false, false));
+        new RandomBranch<static_available>(GenMethod::COS, false, false));
 }
 
 std::unique_ptr<BenchDesc> get_random_branch_hit_desc() {
     return std::unique_ptr<BenchDesc>(
-        new RandomBranch(GenMethod::FULL, true, false));
+        new RandomBranch<static_available>(GenMethod::FULL, true, false));
 }
 std::unique_ptr<BenchDesc> get_inst_random_branch_hit_desc() {
     return std::unique_ptr<BenchDesc>(
-        new RandomBranch(GenMethod::INST, true, false));
+        new RandomBranch<static_available>(GenMethod::INST, true, false));
 }
 std::unique_ptr<BenchDesc> get_iter_random_branch_hit_desc() {
     return std::unique_ptr<BenchDesc>(
-        new RandomBranch(GenMethod::ITER, true, false));
+        new RandomBranch<static_available>(GenMethod::ITER, true, false));
 }
 std::unique_ptr<BenchDesc> get_cos_branch_hit_desc() {
     return std::unique_ptr<BenchDesc>(
-        new RandomBranch(GenMethod::COS, true, false));
+        new RandomBranch<static_available>(GenMethod::COS, true, false));
 }
 
 std::unique_ptr<BenchDesc> get_indirect_branch_desc() {
     return std::unique_ptr<BenchDesc>(
-        new RandomBranch(GenMethod::FULL, false, true));
+        new RandomBranch<static_available>(GenMethod::FULL, false, true));
 }
 std::unique_ptr<BenchDesc> get_indirect_branch_hit_desc() {
     return std::unique_ptr<BenchDesc>(
-        new RandomBranch(GenMethod::FULL, true, true));
+        new RandomBranch<static_available>(GenMethod::FULL, true, true));
 }
-
-#else
-std::unique_ptr<BenchDesc> get_random_branch_desc() {
-    return std::unique_ptr<BenchDesc>();
-}
-std::unique_ptr<BenchDesc> get_inst_random_branch_desc() {
-    return std::unique_ptr<BenchDesc>();
-}
-std::unique_ptr<BenchDesc> get_iter_random_branch_desc() {
-    return std::unique_ptr<BenchDesc>();
-}
-std::unique_ptr<BenchDesc> get_cos_branch_desc() {
-    return std::unique_ptr<BenchDesc>();
-}
-
-std::unique_ptr<BenchDesc> get_random_branch_hit_desc() {
-    return std::unique_ptr<BenchDesc>();
-}
-std::unique_ptr<BenchDesc> get_inst_random_branch_hit_desc() {
-    return std::unique_ptr<BenchDesc>();
-}
-std::unique_ptr<BenchDesc> get_iter_random_branch_hit_desc() {
-    return std::unique_ptr<BenchDesc>();
-}
-std::unique_ptr<BenchDesc> get_cos_branch_hit_desc() {
-    return std::unique_ptr<BenchDesc>();
-}
-
-std::unique_ptr<BenchDesc> get_indirect_branch_desc() {
-    return std::unique_ptr<BenchDesc>();
-}
-std::unique_ptr<BenchDesc> get_indirect_branch_hit_desc() {
-    return std::unique_ptr<BenchDesc>();
-}
-
-#endif
 
 } // namespace smbm

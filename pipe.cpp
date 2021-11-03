@@ -24,9 +24,12 @@
 namespace smbm {
 
 #if (defined X86) || (defined AARCH64)
+#define STATIC_AVAILABLE
+#endif
 
 namespace {
 
+#ifdef STATIC_AVAILABLE
 enum class Buffer {
     ROB,
     INT_PRF,
@@ -360,12 +363,14 @@ static inline int reverse_bit(int bits, int nbits) {
 
     return ret;
 }
+#endif
 
 struct CPUCorePipeline : public BenchDesc {
     CPUCorePipeline() : BenchDesc("cpucore_pipeline") {}
 
     typedef Table1D<int, std::string> table_t;
 
+#ifdef STATIC_AVAILABLE
     virtual result_t run(GlobalState const *g) override {
         std::vector<std::string> labels;
         std::vector<int> results;
@@ -549,10 +554,21 @@ struct CPUCorePipeline : public BenchDesc {
 
         return result_t(table);
     }
+#else
+    virtual result_t run(GlobalState const *g) override {
+        return result_t();
+    }
+#endif
 
     int double_precision() override { return 2; }
 
-    bool available(const GlobalState *g) override { return g->has_ooo(); }
+    bool available(const GlobalState *g) override {
+#ifndef STATIC_AVAILABLE
+        return false;
+#endif
+
+        return g->has_ooo();
+    }
 
     virtual result_t parse_json_result(picojson::value const &v) override {
         return result_t(table_t::parse_json_result(v));
@@ -565,12 +581,5 @@ std::unique_ptr<BenchDesc> get_cpucore_pipeline_desc() {
     return std::unique_ptr<BenchDesc>(new CPUCorePipeline());
 }
 
-#else
-
-std::unique_ptr<BenchDesc> get_cpucore_pipeline_desc() {
-    return std::unique_ptr<BenchDesc>();
-}
-
-#endif
 
 } // namespace smbm

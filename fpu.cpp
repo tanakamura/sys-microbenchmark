@@ -128,6 +128,7 @@ struct denormal_div
     F(denormal_div)                                 \
     F(normal_div)                                   \
 
+template <bool static_available>
 struct FPU : public BenchDesc {
     bool cycle;
     FPU(bool cycle) : BenchDesc(cycle?"fpu-cycle":"fpu-realtime"), cycle(cycle) {}
@@ -177,6 +178,9 @@ struct FPU : public BenchDesc {
     }
 
     bool available(const GlobalState *g) override {
+        if (!static_available) {
+            return false;
+        }
         if (cycle) {
             if (! g->is_hw_perf_counter_available()) {
                 return false;
@@ -203,11 +207,15 @@ struct FPU : public BenchDesc {
 } // namespace
 
 std::unique_ptr<BenchDesc> get_fpu_realtime_desc() {
-    return std::unique_ptr<BenchDesc>(new FPU(false));
+    return std::unique_ptr<BenchDesc>(new FPU<true>(false));
 }
 #ifdef HAVE_HW_PERF_COUNTER
 std::unique_ptr<BenchDesc> get_fpu_cycle_desc() {
-    return std::unique_ptr<BenchDesc>(new FPU(true));
+    return std::unique_ptr<BenchDesc>(new FPU<true>(true));
+}
+#else
+std::unique_ptr<BenchDesc> get_fpu_cycle_desc() {
+    return std::unique_ptr<BenchDesc>(new FPU<false>(true));
 }
 #endif
 

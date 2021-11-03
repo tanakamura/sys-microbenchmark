@@ -10,12 +10,11 @@
 
 namespace smbm {
 
-#ifdef HAVE_HW_PERF_COUNTER
-
-
 namespace {
 
 using namespace af;
+
+#ifdef HAVE_HW_PERF_COUNTER
 
 struct ThreadInfo {
     thread_handle_t thread;
@@ -46,7 +45,7 @@ static void *thread_func(void *ap) {
 
     wait_barrier(ti->start_barrier, ti->total_thread_num);
     ot.start(ti->g, ti->delay);
-    
+
     if (ti->tid == 0) {
         pt0 = ti->g->get_hw_cpucycle();
     }
@@ -130,9 +129,6 @@ static double run1(ThreadInfo *ti,
 }
 
 static constexpr bool T() { return true; } 
-                
-}
-
 
 #define FOR_EACH_INST_GENERIC(F)                        \
     F(iadd64,T)                                          \
@@ -161,6 +157,7 @@ static constexpr bool T() { return true; }
     FOR_EACH_INST_GENERIC(F)
 #endif
 
+#endif
 
 struct ActualFreq
     :public BenchDesc
@@ -172,7 +169,7 @@ struct ActualFreq
     {}
 
     result_t run(GlobalState const *g) override {
-
+#ifdef HAVE_HW_PERF_COUNTER
         std::vector<std::string> row_label;
         std::vector<uint32_t> threads;
         std::vector<double> delays = {0.01, 0.1, 0.2, 0.4};
@@ -227,6 +224,9 @@ struct ActualFreq
         }
 
         return std::unique_ptr<BenchResult>(result_table);
+#else
+        return result_t();
+#endif
     }
     result_t parse_json_result(picojson::value const &v) override {
         return result_t(table_t::parse_json_result(v));
@@ -235,17 +235,18 @@ struct ActualFreq
     int double_precision() override { return 2; }
 
     bool available(const GlobalState *g) override {
+#ifdef HAVE_HW_PERF_COUNTER
         return g->is_hw_perf_counter_available();
+#else
+        return false;
+#endif
     }
 };
+
+}
 
 std::unique_ptr<BenchDesc> get_actual_freq_desc() {
     return std::unique_ptr<BenchDesc> (new ActualFreq());
 }
-#else
-std::unique_ptr<BenchDesc> get_actual_freq_desc() {
-    return std::unique_ptr<BenchDesc>();
-}
-#endif
 
 }

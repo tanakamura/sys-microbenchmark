@@ -1,18 +1,18 @@
 #include "oneshot_timer.h"
+#include "simple-run.h"
 #include "sys-microbenchmark.h"
 #include "table.h"
-#include "simple-run.h"
 
 #if (defined POSIX) || (defined WASI)
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <sys/stat.h>
 #endif
 
 #ifdef POSIX
-#include <sys/mman.h>
 #include <pthread.h>
+#include <sys/mman.h>
 #include <sys/wait.h>
 #endif
 
@@ -20,13 +20,12 @@
 #include <process.h>
 #endif
 
-
 namespace smbm {
 
-#ifndef BAREMETAL
 
 namespace {
 
+#ifndef BAREMETAL
 struct no_arg {
     void *alloc_arg() { return nullptr; };
     void free_arg(void *p) {}
@@ -47,7 +46,9 @@ struct close_invalid : public no_arg {
 struct open_close : public no_arg {
     void run(void *arg) {
 #ifdef WINDOWS
-        HANDLE h = CreateFileW(L"C:\\Windows\\system.ini", GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        HANDLE h =
+            CreateFileW(L"C:\\Windows\\system.ini", GENERIC_READ, 0, NULL,
+                        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
         if (h == INVALID_HANDLE_VALUE) {
             puts("CreateFile(system.ini)");
             exit(1);
@@ -69,7 +70,7 @@ struct pipe_close : public no_arg {
     void run(void *arg) {
         HANDLE read_pipe;
         HANDLE write_pipe;
-        CreatePipe(&read_pipe, &write_pipe, NULL,0);
+        CreatePipe(&read_pipe, &write_pipe, NULL, 0);
         CloseHandle(read_pipe);
         CloseHandle(write_pipe);
     }
@@ -84,7 +85,6 @@ struct pipe_close : public no_arg {
     }
 };
 #endif
-
 
 #ifdef POSIX
 struct select_0 : public no_arg {
@@ -129,11 +129,8 @@ struct fork_wait : public no_arg {
 #ifdef WINDOWS
 struct mmap_unmap : public no_arg {
     HANDLE alloc_arg() {
-        HANDLE ret = CreateFileMappingW(INVALID_HANDLE_VALUE,
-                                        NULL,
-                                        PAGE_EXECUTE_READWRITE,
-                                        0, 4096,
-                                        NULL);
+        HANDLE ret = CreateFileMappingW(INVALID_HANDLE_VALUE, NULL,
+                                        PAGE_EXECUTE_READWRITE, 0, 4096, NULL);
         if (ret == INVALID_HANDLE_VALUE) {
             puts("CreateFileMappingW");
             exit(1);
@@ -168,7 +165,8 @@ struct mmap_unmap : public no_arg {
 #ifdef WINDOWS
 struct write_devnull_1byte {
     HANDLE alloc_arg() {
-        HANDLE h = CreateFileW(L"nul", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        HANDLE h = CreateFileW(L"nul", GENERIC_WRITE, 0, NULL, OPEN_EXISTING,
+                               FILE_ATTRIBUTE_NORMAL, NULL);
         if (h == INVALID_HANDLE_VALUE) {
             puts("CreateFileW(nul)");
             exit(1);
@@ -177,9 +175,7 @@ struct write_devnull_1byte {
         return h;
     }
 
-    void free_arg(HANDLE h) {
-        CloseHandle(h);
-    }
+    void free_arg(HANDLE h) { CloseHandle(h); }
 
     void run(HANDLE h) {
         char x = 0;
@@ -204,12 +200,10 @@ struct write_devnull_1byte {
         return ret;
     }
 
-    void free_arg(int fd) {
-        close(fd);
-    }
+    void free_arg(int fd) { close(fd); }
 
     void run(int fd) {
-        char x=0;
+        char x = 0;
         ssize_t wrsz = write(fd, &x, 1);
         if (wrsz != 1) {
             perror("write");
@@ -225,7 +219,9 @@ struct thread_create_join : public no_arg {
     void run(void *arg) {
 #ifdef WINDOWS
         unsigned int threadID;
-        HANDLE ret = (HANDLE)_beginthreadex(NULL, 0, (unsigned __stdcall (*)(void*))thread_func, arg, 0, &threadID);
+        HANDLE ret = (HANDLE)_beginthreadex(
+            NULL, 0, (unsigned __stdcall (*)(void *))thread_func, arg, 0,
+            &threadID);
         WaitForSingleObject(ret, INFINITE);
         CloseHandle(ret);
 #elif defined POSIX
@@ -269,9 +265,7 @@ struct fstat1 : public no_arg {
         }
         return ret;
     }
-    void free_arg(int fd) {
-        close(fd);
-    }
+    void free_arg(int fd) { close(fd); }
 
     void run(int fd) {
         struct stat st;
@@ -282,31 +276,22 @@ struct fstat1 : public no_arg {
 #endif
 
 #ifdef WINDOWS
-struct QueryPerformanceCounter1
-    :public no_arg
-{
+struct QueryPerformanceCounter1 : public no_arg {
     void run(void *p) {
         LARGE_INTEGER v;
         QueryPerformanceCounter(&v);
     }
 };
 
-struct create_destroy_window
-{
-    HINSTANCE alloc_arg() {
-        return (HINSTANCE)GetModuleHandle(NULL);
-    }
+struct create_destroy_window {
+    HINSTANCE alloc_arg() { return (HINSTANCE)GetModuleHandle(NULL); }
 
-    void free_arg(HINSTANCE h) {
-    }
+    void free_arg(HINSTANCE h) {}
 
     void run(HINSTANCE hInstance) {
-	HWND w = CreateWindowW(
-            L"BUTTON" , L"test",
-            WS_OVERLAPPED | BS_DEFPUSHBUTTON ,
-            0, 0, 10, 10,
-            NULL, NULL , hInstance , NULL
-	);
+        HWND w =
+            CreateWindowW(L"BUTTON", L"test", WS_OVERLAPPED | BS_DEFPUSHBUTTON,
+                          0, 0, 10, 10, NULL, NULL, hInstance, NULL);
         if (w == NULL) {
             int er = (int)GetLastError();
             printf("CreateWindow 0x%08x %d\n", er, er);
@@ -316,27 +301,20 @@ struct create_destroy_window
     }
 };
 
-struct PeekMessage1
-    :public no_arg
-{
+struct PeekMessage1 : public no_arg {
     void run(void *p) {
         MSG m;
         PeekMessage(&m, NULL, 0, 0, PM_NOREMOVE);
     }
 };
 
-struct GetFileAttributes1
-    :public no_arg
-{
-    void run(void *p) {
-        GetFileAttributesW(L".");
-    }
+struct GetFileAttributes1 : public no_arg {
+    void run(void *p) { GetFileAttributesW(L"."); }
 };
-struct GetFileSize1
-    :public no_arg
-{
+struct GetFileSize1 : public no_arg {
     HANDLE alloc_arg() {
-        HANDLE h = CreateFileW(L"nul", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        HANDLE h = CreateFileW(L"nul", GENERIC_WRITE, 0, NULL, OPEN_EXISTING,
+                               FILE_ATTRIBUTE_NORMAL, NULL);
         if (h == INVALID_HANDLE_VALUE) {
             puts("CreateFileW(nul)");
             exit(1);
@@ -345,9 +323,7 @@ struct GetFileSize1
         return h;
     }
 
-    void free_arg(HANDLE h) {
-        CloseHandle(h);
-    }
+    void free_arg(HANDLE h) { CloseHandle(h); }
 
     void run(HANDLE h) {
         DWORD len;
@@ -357,60 +333,63 @@ struct GetFileSize1
 
 #endif
 
-}
 
-#define FOR_EACH_TEST_GENERIC(F)                                        \
+#define FOR_EACH_TEST_GENERIC(F)                                               \
     /*F(nop)*/                                                                 \
-    F(close_invalid)                                                            \
-    F(open_close)                                                              \
+    F(close_invalid)                                                           \
+    F(open_close)
 
-
-#define FOR_EACH_TEST_POSIX(F)                                          \
-    F(select_0)                                                         \
+#define FOR_EACH_TEST_POSIX(F)                                                 \
+    F(select_0)                                                                \
     F(fork_wait)                                                               \
     F(gettimeofday1)                                                           \
-    F(clock_gettime1)                                                   \
-    F(stat1)                                                            \
-    F(fstat1)                                                            \
+    F(clock_gettime1)                                                          \
+    F(stat1)                                                                   \
+    F(fstat1)                                                                  \
     F(pipe_close)                                                              \
     F(mmap_unmap)                                                              \
-    F(thread_create_join)                                              \
-    F(write_devnull_1byte)                                                     \
+    F(thread_create_join)                                                      \
+    F(write_devnull_1byte)
 
-
-#define FOR_EACH_TEST_WINDOWS(F)                \
-    F(QueryPerformanceCounter1)                  \
-    F(create_destroy_window)                    \
-    F(PeekMessage1)                    \
-    F(GetFileAttributes1)              \
-    F(GetFileSize1)                                                     \
+#define FOR_EACH_TEST_WINDOWS(F)                                               \
+    F(QueryPerformanceCounter1)                                                \
+    F(create_destroy_window)                                                   \
+    F(PeekMessage1)                                                            \
+    F(GetFileAttributes1)                                                      \
+    F(GetFileSize1)                                                            \
     F(pipe_close)                                                              \
     F(mmap_unmap)                                                              \
-    F(thread_create_join)                                              \
-    F(write_devnull_1byte)                                                     \
+    F(thread_create_join)                                                      \
+    F(write_devnull_1byte)
 
 #ifdef POSIX
-#define FOR_EACH_TEST(F)                        \
-    FOR_EACH_TEST_GENERIC(F)                    \
+#define FOR_EACH_TEST(F)                                                       \
+    FOR_EACH_TEST_GENERIC(F)                                                   \
     FOR_EACH_TEST_POSIX(F)
 
 #elif defined WINDOWS
 
-#define FOR_EACH_TEST(F)                        \
-    FOR_EACH_TEST_GENERIC(F)                    \
+#define FOR_EACH_TEST(F)                                                       \
+    FOR_EACH_TEST_GENERIC(F)                                                   \
     FOR_EACH_TEST_WINDOWS(F)
 
-
 #else
-#define FOR_EACH_TEST(F)                        \
-    FOR_EACH_TEST_GENERIC(F)                    \
+#define FOR_EACH_TEST(F) FOR_EACH_TEST_GENERIC(F)
 
 #endif
 
-
+#endif
 
 struct Syscall : public BenchDesc {
     Syscall() : BenchDesc("syscall") {}
+
+#ifdef BAREMETAL
+    virtual result_t run(GlobalState const *g) override {
+        return result_t();
+    }
+    virtual bool available(GlobalState const *g) override { return false; }
+#else
+    virtual bool available(GlobalState const *g) override { return true; }
 
     virtual result_t run(GlobalState const *g) override {
         int count = 0;
@@ -436,21 +415,19 @@ struct Syscall : public BenchDesc {
 
         return std::unique_ptr<BenchResult>(result);
     }
+
+#endif
+
     virtual result_t parse_json_result(picojson::value const &v) override {
         return result_t(Table1D<double, std::string>::parse_json_result(v));
     }
 };
 
+} // namespace
+
+
 std::unique_ptr<BenchDesc> get_syscall_desc() {
     return std::unique_ptr<BenchDesc>(new Syscall());
 }
-
-#else  // BAREMETAL
-
-std::unique_ptr<BenchDesc> get_syscall_desc() {
-    return std::unique_ptr<BenchDesc>();
-}
-
-#endif
 
 } // namespace smbm

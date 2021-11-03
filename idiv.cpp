@@ -87,7 +87,7 @@ std::unique_ptr<BenchResult> run(GlobalState const *g) {
     return std::unique_ptr<BenchResult>(result_table);
 }
 
-template <bool use_perf_counter>
+template <bool use_perf_counter, bool static_available>
 struct IDIV
     :public BenchDesc
 {
@@ -102,9 +102,9 @@ struct IDIV
 
     result_t run(GlobalState const *g) override {
         if (is_32) {
-            return smbm::run<uint32_t,true,use_perf_counter>(g);
+            return smbm::run<uint32_t,true,use_perf_counter&&static_available>(g);
         } else {
-            return smbm::run<uint64_t,false,use_perf_counter>(g);
+            return smbm::run<uint64_t,false,use_perf_counter&&static_available>(g);
         }
     }
 
@@ -117,6 +117,10 @@ struct IDIV
     }
 
     bool available(const GlobalState *g) override {
+        if (!static_available) {
+            return false;
+        }
+
         if (use_perf_counter) {
             return g->is_hw_perf_counter_available();
         } else {
@@ -126,25 +130,25 @@ struct IDIV
 };
 
 std::unique_ptr<BenchDesc> get_idiv32_desc() {
-    return std::unique_ptr<BenchDesc> (new IDIV<false>(true));
+    return std::unique_ptr<BenchDesc> (new IDIV<false,true>(true));
 }
 std::unique_ptr<BenchDesc> get_idiv64_desc() {
-    return std::unique_ptr<BenchDesc> (new IDIV<false>(false));
+    return std::unique_ptr<BenchDesc> (new IDIV<false,true>(false));
 }
 
 #ifdef HAVE_HW_PERF_COUNTER
 std::unique_ptr<BenchDesc> get_idiv32_cycle_desc() {
-    return std::unique_ptr<BenchDesc> (new IDIV<true>(true));
+    return std::unique_ptr<BenchDesc> (new IDIV<true,true>(true));
 }
 std::unique_ptr<BenchDesc> get_idiv64_cycle_desc() {
-    return std::unique_ptr<BenchDesc> (new IDIV<true>(false));
+    return std::unique_ptr<BenchDesc> (new IDIV<true,true>(false));
 }
 #else
 std::unique_ptr<BenchDesc> get_idiv32_cycle_desc() {
-    return std::unique_ptr<BenchDesc>();
+    return std::unique_ptr<BenchDesc>(new IDIV<true,false>(true));
 }
 std::unique_ptr<BenchDesc> get_idiv64_cycle_desc() {
-    return std::unique_ptr<BenchDesc>();
+    return std::unique_ptr<BenchDesc>(new IDIV<true,false>(false));
 }
 #endif
 
