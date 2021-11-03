@@ -22,6 +22,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "barrier.h"
 #include "cpuset.h"
 #include "memalloc.h"
 
@@ -41,10 +42,13 @@ static double ooo_check() {
     int n = 1024 * 1024 * 4;
     asm volatile(" " : "+r"(data), "+r"(n));
 
+    double *p0 = (double *)malloc(sizeof(double));
+    double *p1 = (double *)malloc(sizeof(double));
+
     double delta0, delta1;
 
     {
-        int sum0 = 0, sum1 = 0;
+        int sum0 = *p0, sum1 = *p1;
 
         auto t0 = userland_timer_value::get();
         for (int i = 0; i < n; i++) {
@@ -70,12 +74,14 @@ static double ooo_check() {
 
         delta0 = t1 - t0;
 
-        int sum2 = sum0 + sum1;
-        asm volatile(" " : : "r"(sum2));
+        *p0 = sum1;
+        *p1 = sum0;
     }
 
+    touch_memory();
+
     {
-        int sum0 = 0, sum1 = 0;
+        int sum0 = *p0, sum1 = *p1;
 
         auto t0 = userland_timer_value::get();
         for (int i = 0; i < n; i++) {
@@ -103,12 +109,16 @@ static double ooo_check() {
 
         delta1 = t1 - t0;
 
-        int sum2 = sum0 + sum1;
-        asm volatile(" " : : "r"(sum2));
+        *p0 = sum1;
+        *p1 = sum0;
     }
 
     double ratio = delta0 / delta1;
     printf("ooo ratio : %f\n", ratio);
+
+    touch_memory();
+    free(p0);
+    free(p1);
 
     return ratio;
 }
@@ -234,7 +244,7 @@ std::vector<std::shared_ptr<BenchDesc>> get_all_benchmark_list() {
     {                                                                          \
         auto x = std::shared_ptr<BenchDesc>(get_##B##_desc());                 \
         ret.push_back(x);                                                      \
-    };                                                                         \
+    };
 
     FOR_EACH_BENCHMARK_LIST(FA);
 

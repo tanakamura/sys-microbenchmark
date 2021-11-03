@@ -6,6 +6,10 @@
 #include <x86intrin.h>
 #endif
 
+#ifdef HAVE_CLOSE
+#include <unistd.h>
+#endif
+
 namespace smbm {
 
 #define compiler_mb() __asm__ __volatile__ ("":::"memory");
@@ -42,6 +46,20 @@ static inline void wmb() {
 static inline void isync(void *begin, void *end) {
     compiler_mb();
 }
+#endif
+
+#ifdef HAVE_CLOSE
+static inline void
+touch_memory() {
+    close(-1);
+}
+#elif defined EMSCRIPTEN
+static inline void
+touch_memory() {
+    EM_ASM("");
+}
+#else
+#error "undefined: touch_memory"
 #endif
 
 }

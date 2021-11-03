@@ -21,7 +21,6 @@
 #define _GNU_SOURCE
 #endif
 
-#define HAVE_HWLOC
 #define HAVE_HW_PERF_COUNTER
 #define HAVE_GNU_CPU_SET
 
@@ -33,7 +32,6 @@
 
 #define WINDOWS
 #include <windows.h>
-#define HAVE_HWLOC
 #define HAVE_THREAD
 
 #define clock_gettime w32_clock_gettime_is_not_implemented
@@ -51,6 +49,7 @@
 #ifdef POSIX
 #define HAVE_THREAD
 #define HAVE_CLOCK_GETTIME
+#define HAVE_CLOSE
 #endif
 
 
@@ -69,6 +68,7 @@
 
 #ifdef WASI
 #define HAVE_CLOCK_GETTIME
+#define HAVE_CLOSE
 #else
 
 #ifdef EMSCRIPTEN

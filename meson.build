@@ -57,7 +57,12 @@ if have_cpuinfo
   endif
 
   cpuinfo_proj = cmake.subproject('cpuinfo', options:var)
-  cpuinfo_lib = cpuinfo_proj.dependency('cpuinfo')
+  cpuinfo_dep = [cpuinfo_proj.dependency('cpuinfo'),
+                 cpuinfo_proj.dependency('clog')]
+
+  libsmbm_cpp_args += ['-DHAVE_CPUINFO']
+else
+  cpuinfo_dep = null_dep
 endif
 
 if have_hwloc
@@ -70,6 +75,8 @@ if have_hwloc
                             )
 
   hwloc_dep = hwloc_proj.get_variable('hwloc_dep')
+
+  libsmbm_cpp_args += ['-DHAVE_HWLOC']
 else
   hwloc_dep = null_dep
 endif
@@ -133,7 +140,7 @@ libsmbm = static_library(
 
   'emscripten.cpp',
 
-  dependencies : [omp_dep, hwloc_dep] + simd_deps,
+  dependencies : [omp_dep, hwloc_dep, cpuinfo_dep] + simd_deps,
 
   cpp_args : libsmbm_cpp_args,
 )
@@ -155,6 +162,10 @@ executable('sys-microbenchmark',
 if not meson.is_cross_build()
   executable('merge-result',
              'merge-result.cpp',
+             dependencies : libsmbm_dep)
+
+  executable('show-result-info',
+             'show-result-info.cpp',
              dependencies : libsmbm_dep)
 endif
 
