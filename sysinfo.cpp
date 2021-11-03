@@ -57,6 +57,7 @@ SysInfo get_sysinfo(GlobalState const *g) {
 
 #elif defined HAVE_CPUINFO
     ret.cpuid = cpuinfo_get_package(0)->name;
+    printf("cpuinfo report: %s\n", ret.cpuid.c_str());
 #elif defined EMSCRIPTEN
     ret.cpuid = "emscripten";
 #else
