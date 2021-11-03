@@ -374,3 +374,10 @@ std::string byte1024(size_t sz, int prec) {
 }
 
 } // namespace smbm
+
+#ifdef __ANDROID__
+int __android_log_vprint(int prio, const char *tag, const char *fmt,
+                         va_list ap) {
+    return 0;
+}
+#endif
