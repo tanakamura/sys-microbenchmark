@@ -27,7 +27,7 @@ namespace {
 typedef Table1DBenchDesc<double, std::string> parent_t;
 
 struct Instruction : public parent_t {
-    Instruction() : parent_t("instruction") {}
+    Instruction() : parent_t("instruction", LOWER_IS_BETTER) {}
 
     virtual result_t run(GlobalState const *g) override {
         int count = 0;

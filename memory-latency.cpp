@@ -14,7 +14,8 @@ struct MemoryLatency : public parent_t {
     bool has_dep;
 
     MemoryLatency(bool has_dep)
-        : parent_t(has_dep ? "random-access-seq" : "random-access-para"),
+        : parent_t(has_dep ? "random-access-seq" : "random-access-para",
+                   LOWER_IS_BETTER),
           has_dep(has_dep) {}
 
     virtual result_t run(GlobalState const *g) override {

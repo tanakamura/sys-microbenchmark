@@ -360,7 +360,7 @@ struct sort4 : public sort {
 typedef Table1DBenchDesc<double, std::string> parent_t;
 
 struct LIBC : public parent_t {
-    LIBC() : parent_t("libc") {}
+    LIBC() : parent_t("libc", LOWER_IS_BETTER) {}
 
     virtual result_t run(GlobalState const *g) override {
         int count = 0;

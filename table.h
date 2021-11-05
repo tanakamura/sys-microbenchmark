@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <iostream>
 #include <math.h>
+#include <optional>
 #include <sstream>
 
 namespace smbm {
@@ -19,9 +20,27 @@ void dump2d(std::ostream &out, Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> *t,
 template <typename T, typename LT>
 void dump1d(std::ostream &out, Table1D<T, LT> *t, int double_precision);
 
+template <typename T> void set_xlabel_style(ComparableResult &cr);
+template <> inline void set_xlabel_style<std::string>(ComparableResult &cr) {
+    cr.xlabel_style = XLabelStyle::STRING;
+}
+template <> inline void set_xlabel_style<double>(ComparableResult &cr) {
+    cr.xlabel_style = XLabelStyle::DOUBLE;
+}
+template <> inline void set_xlabel_style<int>(ComparableResult &cr) {
+    cr.xlabel_style = XLabelStyle::DOUBLE;
+}
+
+inline void set_xlabel(CompareData &cd, const std::string &val) {
+    cd.xlabel = val;
+}
+inline void set_xlabel(CompareData &cd, double val) { cd.xval = val; }
+
 template <typename T, typename ROW_LABEL_T,
           typename COLUMN_LABEL_T = ROW_LABEL_T>
 struct Table2D : public BenchResult {
+    typedef Table2D<T, ROW_LABEL_T, COLUMN_LABEL_T> This_t;
+
     std::string label[2];
     std::vector<T> v;
     std::vector<COLUMN_LABEL_T> column_label;
@@ -85,9 +104,84 @@ struct Table2D : public BenchResult {
         return r;
     }
 
-    static std::vector<double>
-    compare(std::vector<result_ptr_t> const &results) {
-        return {};
+    static std::optional<double> find_min_max(result_ptr_t const &r, bool min) {
+        if (!r) {
+            return std::nullopt;
+        }
+
+        auto result = std::dynamic_pointer_cast<This_t>(r);
+        if (!result) {
+            return std::nullopt;
+        }
+
+        size_t nr = result->d1;
+        size_t nc = result->d0;
+
+        double val = 0;
+        if (min) {
+            val = 1e9;
+        } else {
+            val = -1e9;
+        }
+
+        for (size_t ri=0; ri<nr; ri++) {
+            for (size_t ci=0; ci<nc; ci++) {
+                double vv = result->v[ri*nc + ci];
+
+                if (min) {
+                    val = std::min(val, vv);
+                } else {
+                    val = std::max(val, vv);
+                }
+            }
+        }
+
+        return val;
+    }
+
+
+    static std::vector<ComparableResult>
+    compare_minmax(std::string const &name, std::vector<result_ptr_t> const &results, int base_index) {
+        auto base_result =
+            std::dynamic_pointer_cast<This_t>(results[base_index]);
+        size_t nv = base_result->v.size();
+        size_t nr = results.size();
+        std::vector<ComparableResult> ret(nv);
+        ComparableResult cr;
+
+        cr.xlabel_style = XLabelStyle::STRING;
+        cr.name = name;
+        cr.value_unit = "";
+
+        for (int mm=0; mm<2; mm++) {
+            bool min = mm==0;
+            CompareData cd;
+
+            auto baseval_o = This_t::find_min_max(base_result, min);
+            if (!baseval_o) {
+                continue;
+            }
+            auto baseval = *baseval_o;
+
+            if (min) {
+                cd.xlabel = "min";
+            } else {
+                cd.xlabel = "max";
+            }
+
+            for (size_t ri = 0; ri < nr; ri++) {
+                auto v = This_t::find_min_max(results[ri], min);
+                if (v) {
+                    cd.data.push_back((*v) / baseval);
+                } else {
+                    cd.data.push_back(-1);
+                }
+            }
+
+            cr.data.push_back(cd);
+        }
+
+        return {cr};
     }
 };
 
@@ -97,6 +191,7 @@ template <typename T, typename LT> struct Table1D : public BenchResult {
     std::vector<LT> row_label;
     std::string column_label;
     int d0;
+    typedef Table1D<T, LT> This_t;
 
     Table1D(std::string const &d0_label, int d0) : label(d0_label), d0(d0) {
         v.resize(d0);
@@ -130,7 +225,6 @@ template <typename T, typename LT> struct Table1D : public BenchResult {
         std::string label0;
         from_jv(value.get("label"), &label0);
 
-
         int d0;
         from_jv(value.get("d0"), &d0);
 
@@ -141,12 +235,61 @@ template <typename T, typename LT> struct Table1D : public BenchResult {
         return r;
     }
 
-    static std::vector<double>
-    compare(std::vector<result_ptr_t> const &results) {
-        return {};
+    static std::optional<double> find_result(result_ptr_t const &r, const LT &label) {
+        if (!r) {
+            return std::nullopt;
+        }
+
+        auto result = std::dynamic_pointer_cast<This_t>(r);
+        if (!result) {
+            return std::nullopt;
+        }
+
+        size_t nl = result->row_label.size();
+        for (size_t li = 0; li < nl; li++) {
+            if (result->row_label[li] == label) {
+                return result->v[li];
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    static std::vector<ComparableResult>
+    compare(std::string const &name, std::vector<result_ptr_t> const &results, int base_index) {
+        auto base_result =
+            std::dynamic_pointer_cast<This_t>(results[base_index]);
+        size_t nv = base_result->v.size();
+        size_t nr = results.size();
+        std::vector<ComparableResult> ret(nv);
+        ComparableResult cr;
+
+        set_xlabel_style<LT>(cr);
+        cr.name = name;
+        cr.value_unit = base_result->column_label;
+
+        for (size_t vi = 0; vi < nv; vi++) {
+            CompareData cd;
+            double baseval = base_result->v[vi];
+
+            set_xlabel(cd, base_result->row_label[vi]);
+
+            for (size_t ri = 0; ri < nr; ri++) {
+                auto v = This_t::find_result(results[ri],
+                                             base_result->row_label[vi]);
+                if (v) {
+                    cd.data.push_back((*v) / baseval);
+                } else {
+                    cd.data.push_back(-1);
+                }
+            }
+
+            cr.data.push_back(cd);
+        }
+
+        return {cr};
     }
 };
-
 
 inline unsigned int get_column_width(unsigned int x, int) {
     if (x == 0) {
@@ -332,33 +475,40 @@ void dump1d(std::ostream &out, Table1D<T, LT> *t, int double_precision) {
     out << "v : " << t->label << '\n';
 }
 
-
-
-template <typename T, typename LT>
-struct Table1DBenchDesc : public BenchDesc {
-    Table1DBenchDesc(std::string const &name) : BenchDesc(name) {}
+template <typename T, typename LT> struct Table1DBenchDesc : public BenchDesc {
+    bool low_better;
+    Table1DBenchDesc(std::string const &name, bool lower_is_better) : BenchDesc(name), low_better(lower_is_better) {}
     typedef Table1D<T, LT> table_t;
 
     result_t parse_json_result(picojson::value const &v) override {
         return result_t(table_t::parse_json_result(v));
     }
-    std::vector<double> compare(std::vector< result_ptr_t > const &results) override {
-        return table_t::compare(results);
+    std::vector<ComparableResult>
+    compare(std::vector<result_ptr_t> const &results, int base_index) override {
+        return table_t::compare(this->name, results, base_index);
+    }
+
+    bool lower_is_better() const override {
+        return low_better;
     }
 };
 
-template <typename T, typename RLT, typename CLT=RLT>
+template <typename T, typename RLT, typename CLT = RLT>
 struct Table2DBenchDesc : public BenchDesc {
-    Table2DBenchDesc(std::string const &name) : BenchDesc(name) {}
+    bool low_better;
+    Table2DBenchDesc(std::string const &name, bool lower_is_better) : BenchDesc(name), low_better(lower_is_better) {}
     typedef Table2D<T, RLT, CLT> table_t;
 
     result_t parse_json_result(picojson::value const &v) override {
         return result_t(table_t::parse_json_result(v));
     }
-    std::vector<double> compare(std::vector< result_ptr_t > const &results) override {
-        return table_t::compare(results);
+    std::vector<ComparableResult>
+    compare(std::vector<result_ptr_t> const &results, int base_index) override {
+        return table_t::compare_minmax(this->name, results, base_index);
+    }
+    bool lower_is_better() const override {
+        return low_better;
     }
 };
-
 
 } // namespace smbm

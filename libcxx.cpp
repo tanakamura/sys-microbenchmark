@@ -421,7 +421,7 @@ struct throw_catch : public no_arg {
 typedef Table1DBenchDesc<double, std::string> parent_t;
 
 struct LIBCXX : public parent_t {
-    LIBCXX() : parent_t("libc++") {}
+    LIBCXX() : parent_t("libc++", LOWER_IS_BETTER) {}
 
     virtual result_t run(GlobalState const *g) override {
         int count = 0;

@@ -13,6 +13,9 @@ std::shared_ptr<SysInfo> get_sysinfo_ptr(std::shared_ptr<GlobalState> &g) {
     *ret = get_sysinfo(g.get());
     return ret;
 }
+
+
+
 } // namespace
 
 EMSCRIPTEN_BINDINGS(sys_microbenchmark) {
@@ -42,5 +45,6 @@ EMSCRIPTEN_BINDINGS(sys_microbenchmark) {
     register_vector<std::string>("vector<string>");
 
     function("get_all_benchmark_list", &get_all_benchmark_list);
+    function("merge_result", &merge_result);
 }
 #endif

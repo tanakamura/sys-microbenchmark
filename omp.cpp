@@ -147,7 +147,7 @@ struct parallel_barrier_1K : public no_arg {
 typedef Table1DBenchDesc<double, std::string> parent_t;
 
 struct OpenMP : public parent_t {
-    OpenMP() : parent_t("OpenMP") {}
+    OpenMP() : parent_t("OpenMP", LOWER_IS_BETTER) {}
 
     virtual result_t run(GlobalState const *g) override {
 

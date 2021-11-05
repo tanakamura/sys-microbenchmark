@@ -368,7 +368,7 @@ static inline int reverse_bit(int bits, int nbits) {
 typedef Table1DBenchDesc<int, std::string> parent_t;
 
 struct CPUCorePipeline : public parent_t {
-    CPUCorePipeline() : parent_t("cpucore_pipeline") {}
+    CPUCorePipeline() : parent_t("cpucore_pipeline", HIGHER_IS_BETTER) {}
 
 #ifdef STATIC_AVAILABLE
     virtual result_t run(GlobalState const *g) override {

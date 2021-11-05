@@ -39,6 +39,32 @@ struct BenchResult {
 
 typedef std::shared_ptr<BenchResult> result_ptr_t;
 
+enum class XLabelStyle { DOUBLE, STRING };
+
+struct CompareData {
+    double xval;
+    std::string xlabel;
+    std::vector<double> data;
+
+    const std::string &get_str_xlabel() const { return xlabel; }
+    double get_double_xlabel() const { return xval; }
+    const std::vector<double> &get_data() const { return data; }
+};
+
+struct ComparableResult {
+    std::string name;
+    std::vector<CompareData> data;
+    std::string value_unit;
+
+    XLabelStyle xlabel_style;
+
+    const std::string &get_name() const { return name; }
+    const std::vector<CompareData> &get_data() const { return data; }
+};
+
+static constexpr bool HIGHER_IS_BETTER = false;
+static constexpr bool LOWER_IS_BETTER = true;
+
 struct BenchDesc {
     std::string name;
     typedef result_ptr_t result_t;
@@ -50,15 +76,17 @@ struct BenchDesc {
     virtual bool available(GlobalState const *g) { return true; }
 
     const std::string &get_name() const { return name; }
+    virtual bool lower_is_better() const = 0;
 
-    virtual std::vector<double> compare(std::vector< result_ptr_t > const &results) = 0;
+    virtual std::vector<ComparableResult>
+    compare(std::vector<result_ptr_t> const &results, int base_index) = 0;
 };
 
 #define FOR_EACH_BENCHMARK_LIST_ALL(F, F_CYCLE)                                \
     F(idiv32)                                                                  \
     F(idiv64)                                                                  \
-    F(idiv32_cycle)                                                      \
-    F(idiv64_cycle)                                               \
+    F(idiv32_cycle)                                                            \
+    F(idiv64_cycle)                                                            \
     F(syscall)                                                                 \
     F(memory_bandwidth_1thread)                                                \
     F(memory_bandwidth_full_thread)                                            \
@@ -268,7 +296,9 @@ struct SysInfo {
     const std::string &get_userland_timer() const { return userland_timer; }
     const std::string &get_os() const { return os; }
     const std::string &get_date() const { return date; }
-    const std::vector<std::string> &get_vulnerabilities() const { return vulnerabilities; }
+    const std::vector<std::string> &get_vulnerabilities() const {
+        return vulnerabilities;
+    }
     const std::string &get_cpuid() const { return cpuid; }
     bool get_perf_counter_available() const { return perf_counter_available; }
     double get_ooo_ratio() const { return ooo_ratio; }

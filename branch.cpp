@@ -44,13 +44,10 @@ struct Loop {
     }
 };
 
-
 #else
 struct Loop {
-    Loop(int ninsn, bool indirect_branch, int nindirect_brach_target) {
-    }
-    void invoke(char const *table, int nloop) {
-    }
+    Loop(int ninsn, bool indirect_branch, int nindirect_brach_target) {}
+    void invoke(char const *table, int nloop) {}
 };
 
 #endif
@@ -141,7 +138,7 @@ static ResultValue run1(const GlobalState *g, int ninst, int nloop,
     loop.invoke(&table[0], nloop);
 
     t0 = userland_timer_value::get();
-#ifdef HAVE_HW_PERF_COUNTER    
+#ifdef HAVE_HW_PERF_COUNTER
     if (g->is_hw_perf_counter_available()) {
         cycle0 = g->get_hw_cpucycle();
         branch0 = g->get_hw_branch_miss();
@@ -168,9 +165,8 @@ static ResultValue run1(const GlobalState *g, int ninst, int nloop,
     return ret;
 }
 
-typedef Table1DBenchDesc<double,std::string> parent_t;
-template<bool static_available>
-struct RandomBranch : public parent_t {
+typedef Table1DBenchDesc<double, std::string> parent_t;
+template <bool static_available> struct RandomBranch : public parent_t {
     GenMethod gm;
     bool use_perf_counter;
     bool indirect;
@@ -213,7 +209,8 @@ struct RandomBranch : public parent_t {
     }
 
     RandomBranch(GenMethod m, bool use_perf_counter, bool indirect)
-        : parent_t(RandomBranch::get_name(m, use_perf_counter, indirect)),
+        : parent_t(RandomBranch::get_name(m, use_perf_counter, indirect),
+                   LOWER_IS_BETTER),
           gm(m), use_perf_counter(use_perf_counter), indirect(indirect) {}
 
     virtual result_t run(GlobalState const *g) override {
@@ -294,7 +291,6 @@ constexpr bool static_available = true;
 constexpr bool static_available = false;
 #endif
 } // namespace
-
 
 std::unique_ptr<BenchDesc> get_random_branch_desc() {
     return std::unique_ptr<BenchDesc>(

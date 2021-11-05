@@ -132,7 +132,7 @@ typedef Table1DBenchDesc<double,std::string> parent_t;
 template <bool static_available>
 struct FPU : public parent_t{
     bool cycle;
-    FPU(bool cycle) : parent_t(cycle?"fpu-cycle":"fpu-realtime"), cycle(cycle) {}
+    FPU(bool cycle) : parent_t(cycle?"fpu-cycle":"fpu-realtime", LOWER_IS_BETTER), cycle(cycle) {}
 
     virtual result_t run(GlobalState const *g) override {
         int count = 0;

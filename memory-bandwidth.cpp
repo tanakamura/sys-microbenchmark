@@ -1,7 +1,5 @@
-#include <sstream>
-#include <iomanip>
-#include "cpu-feature.h"
 #include "memory-bandwidth.h"
+#include "cpu-feature.h"
 #include "ipc.h"
 #include "memalloc.h"
 #include "oneshot_timer.h"
@@ -9,6 +7,8 @@
 #include "table.h"
 #include "thread.h"
 #include "x86funcs.h"
+#include <iomanip>
+#include <sstream>
 
 namespace smbm {
 
@@ -108,10 +108,7 @@ static inline void invoke_memory_func(ThreadInfo *ti, void *dst, void *src) {
     }
 }
 
-
-static bool
-run_mem_func(ThreadInfo *ti)
-{
+static bool run_mem_func(ThreadInfo *ti) {
     if (ti->self_cpu != 0) {
         read_pipe(&ti->notify_to_copy_thread);
     }
@@ -143,29 +140,23 @@ run_mem_func(ThreadInfo *ti)
     ti->actual_sec = ti->g->userland_timer_delta_to_sec(t1 - t0);
     ti->total_transfer = call_count * ti->buffer_size;
 
-    if (ti->self_cpu != 0){
+    if (ti->self_cpu != 0) {
         write_pipe(&ti->notify_from_copy_thread, 0);
     }
 
     return true;
 }
 
-
-static void
-setup_thread(ThreadInfo *ti)
-{
-    ProcessorIndex idx = ti->g->proc_table->logical_index_to_processor(ti->self_cpu, PROC_ORDER_OUTER_TO_INNER);
-    bind_self_to_1proc(ti->g->proc_table,
-                       idx,
-                       true);
+static void setup_thread(ThreadInfo *ti) {
+    ProcessorIndex idx = ti->g->proc_table->logical_index_to_processor(
+        ti->self_cpu, PROC_ORDER_OUTER_TO_INNER);
+    bind_self_to_1proc(ti->g->proc_table, idx, true);
 
     ti->src = aligned_calloc(64, ti->buffer_size);
     ti->dst = aligned_calloc(64, ti->buffer_size);
 }
 
-static void
-finish_thread(ThreadInfo *ti)
-{
+static void finish_thread(ThreadInfo *ti) {
     aligned_free(ti->src);
     aligned_free(ti->dst);
 }
@@ -259,8 +250,9 @@ static double run1(ThreadInfo *ti, int num_thread, memop op, fn_union u) {
     return bytes_per_sec;
 }
 
-static ThreadInfo *init_threads(const GlobalState *g, int start_proc, int num_thread,
-                                double duration_sec, size_t buffer_size) {
+static ThreadInfo *init_threads(const GlobalState *g, int start_proc,
+                                int num_thread, double duration_sec,
+                                size_t buffer_size) {
     ThreadInfo *t = new ThreadInfo[num_thread];
 
     atomic_int_t *start_barrier = new atomic_int_t;
@@ -327,11 +319,11 @@ void gccvec128_store_test(void *dst, size_t sz) {
 
     vec128i zero = {0, 0};
 
-    for (size_t i = 0; i < nloop; i+=4) {
-        pd[i+0] = zero;
-        pd[i+1] = zero;
-        pd[i+2] = zero;
-        pd[i+3] = zero;
+    for (size_t i = 0; i < nloop; i += 4) {
+        pd[i + 0] = zero;
+        pd[i + 1] = zero;
+        pd[i + 2] = zero;
+        pd[i + 3] = zero;
     }
 }
 
@@ -370,13 +362,13 @@ uint64_t simple_long_sum_test(void const *src, size_t sz) {
     return sum;
 }
 
+typedef Table1DBenchDesc<double, std::string> bw_parent_t;
 
-struct MemoryBandwidth : public BenchDesc {
-    typedef Table1D<double, std::string> table_t;
+struct MemoryBandwidth : public bw_parent_t {
     bool full_thread;
 
     MemoryBandwidth(bool full_thread)
-        : BenchDesc(full_thread ? "membw_mt" : "membw_1t"),
+        : bw_parent_t(full_thread ? "membw_mt" : "membw_1t", HIGHER_IS_BETTER),
           full_thread(full_thread) {}
 
     virtual result_t run(const GlobalState *g) override {
@@ -414,12 +406,10 @@ struct MemoryBandwidth : public BenchDesc {
 
         {
             // move to unused core
-            ProcessorIndex idx = g->proc_table->logical_index_to_processor(max_thread-1, PROC_ORDER_OUTER_TO_INNER);
-            bind_self_to_1proc(g->proc_table,
-                               idx,
-                               true);
+            ProcessorIndex idx = g->proc_table->logical_index_to_processor(
+                max_thread - 1, PROC_ORDER_OUTER_TO_INNER);
+            bind_self_to_1proc(g->proc_table, idx, true);
         }
-
 
         int nthread = 1;
         if (this->full_thread) {
@@ -471,12 +461,7 @@ struct MemoryBandwidth : public BenchDesc {
             bind_self_to_first(g->proc_table, true);
         }
 
-
         return result_t(result);
-    }
-
-    result_t parse_json_result(picojson::value const &v) override {
-        return result_t(table_t::parse_json_result(v));
     }
 
     bool available(GlobalState const *g) override {
@@ -486,15 +471,9 @@ struct MemoryBandwidth : public BenchDesc {
             return true;
         }
     }
-
-    std::vector<double> compare(std::vector< result_ptr_t > const &results) override {
-        return table_t::compare(results);
-    }
 };
 
-struct CacheBandwidthResult
-    :public BenchResult
-{
+struct CacheBandwidthResult : public BenchResult {
     typedef Table1D<double, int> table_t;
     typedef std::map<memop, std::unique_ptr<table_t>> table_list_t;
 
@@ -533,7 +512,8 @@ struct CacheBandwidthResult
         return v_t(list_obj);
     }
 
-    static CacheBandwidthResult *parse_json_result(picojson::value const &value) {
+    static CacheBandwidthResult *
+    parse_json_result(picojson::value const &value) {
         CacheBandwidthResult *ret = new CacheBandwidthResult;
         auto obj = value.get<picojson::object>();
 
@@ -552,21 +532,20 @@ struct CacheBandwidth : public BenchDesc {
     bool full_thread;
 
     CacheBandwidth(bool full_thread)
-        :BenchDesc( full_thread?"cache-bandwidth-mt":"cache-bandwidth-1t"),
-         full_thread(full_thread)
-    {}
+        : BenchDesc(full_thread ? "cache-bandwidth-mt" : "cache-bandwidth-1t"),
+          full_thread(full_thread) {}
 
     virtual result_t run(const GlobalState *g) override {
         size_t start = 2048;
-        size_t max = 16*1024*1024;
+        size_t max = 16 * 1024 * 1024;
 
         MemFuncs funcs = get_fastest_memfunc(g);
 
         std::vector<int> size_set;
 
-        for (double s=start; s<=max; s=s*1.2) {
+        for (double s = start; s <= max; s = s * 1.2) {
             int is = s;
-            is = (is+1024) & ~1023;
+            is = (is + 1024) & ~1023;
             s = is;
 
             size_set.push_back(is);
@@ -586,7 +565,8 @@ struct CacheBandwidth : public BenchDesc {
             std::vector<double> results;
 
             for (auto test_size : size_set) {
-                ThreadInfo *threads = init_threads(g, start_proc, nthread, 0.1, test_size);
+                ThreadInfo *threads =
+                    init_threads(g, start_proc, nthread, 0.1, test_size);
                 union fn_union fn;
                 const char *label = "";
 
@@ -614,19 +594,18 @@ struct CacheBandwidth : public BenchDesc {
 
                 finish_threads(threads, nthread);
 
-                double gbps = bps / (1024.0*1024.0*1024.0);
+                double gbps = bps / (1024.0 * 1024.0 * 1024.0);
 
                 std::ostringstream oss;
                 oss << std::fixed << std::setprecision(2);
 
                 oss << label;
                 oss << " ";
-                //oss << byte1024(test_size,1);
+                // oss << byte1024(test_size,1);
                 oss << test_size;
 
-
-                labels.push_back( oss.str() );
-                results.push_back( gbps );
+                labels.push_back(oss.str());
+                results.push_back(gbps);
             }
 
             table_t *table = new table_t("size", results.size());
@@ -634,16 +613,15 @@ struct CacheBandwidth : public BenchDesc {
             table->column_label = "GiB/s";
             table->row_label = size_set;
 
-            for (size_t i=0; i<results.size(); i++) {
+            for (size_t i = 0; i < results.size(); i++) {
                 (*table)[i] = results[i];
             }
 
-            ret->list.emplace( op, table );
+            ret->list.emplace(op, table);
         }
 
         return result_t(ret);
     }
-
 
     bool available(GlobalState const *g) override {
         if (full_thread) {
@@ -657,11 +635,15 @@ struct CacheBandwidth : public BenchDesc {
         return result_t(list_t::parse_json_result(v));
     }
 
-    std::vector<double> compare(std::vector< result_ptr_t > const &results) override {
-        return table_t::compare(results);
+    std::vector<ComparableResult>
+    compare(std::vector<result_ptr_t> const &results, int base_index) override {
+        return {};
+    }
+
+    virtual bool lower_is_better() const override {
+        return HIGHER_IS_BETTER;
     }
 };
-
 
 std::unique_ptr<BenchDesc> get_memory_bandwidth_1thread_desc() {
     return std::unique_ptr<BenchDesc>(new MemoryBandwidth(false));
@@ -689,7 +671,5 @@ MemFuncs get_fastest_memfunc(const GlobalState *g) {
     return ret;
 }
 #endif
-
-
 
 } // namespace smbm

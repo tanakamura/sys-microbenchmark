@@ -42,8 +42,8 @@ static double ooo_check() {
     int n = 1024 * 1024 * 4;
     asm volatile(" " : "+r"(data), "+r"(n));
 
-    double *p0 = (double *)malloc(sizeof(double));
-    double *p1 = (double *)malloc(sizeof(double));
+    double *p0 = new double;
+    double *p1 = new double;
 
     double delta0, delta1;
 
@@ -117,8 +117,8 @@ static double ooo_check() {
     printf("ooo ratio : %f\n", ratio);
 
     touch_memory();
-    free(p0);
-    free(p1);
+    delete p0;
+    delete p1;
 
     return ratio;
 }

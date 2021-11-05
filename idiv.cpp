@@ -82,8 +82,9 @@ struct IDIV : public parent_t {
     bool is_32;
     IDIV(bool is_32)
         : parent_t(use_perf_counter
-                       ? (is_32 ? "idiv32-cycle" : "idiv64-cycle")
-                       : (is_32 ? "idiv32-realtime" : "idiv64-realtime")),
+                   ? (is_32 ? "idiv32-cycle" : "idiv64-cycle")
+                   : (is_32 ? "idiv32-realtime" : "idiv64-realtime"),
+                   LOWER_IS_BETTER),
           is_32(is_32) {}
 
     result_t run(GlobalState const *g) override {

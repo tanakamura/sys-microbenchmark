@@ -157,7 +157,7 @@ static constexpr bool T() { return true; }
 typedef Table2DBenchDesc<double, std::string, uint32_t> parent_t;
 
 struct ActualFreq : public parent_t {
-    ActualFreq() : parent_t("actual-freq") {}
+    ActualFreq() : parent_t("actual-freq", HIGHER_IS_BETTER) {}
 
     result_t run(GlobalState const *g) override {
 #ifdef HAVE_HW_PERF_COUNTER

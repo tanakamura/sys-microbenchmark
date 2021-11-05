@@ -122,7 +122,8 @@ struct IPC : public parent_t {
 
     IPC(bool use_yield)
         : parent_t(use_yield ? "inter-processor-communication-with-yield"
-                             : "inter-processor-communication"),
+                             : "inter-processor-communication",
+                   LOWER_IS_BETTER),
           use_yield(use_yield) {}
 
     virtual result_t run(GlobalState const *g) override {

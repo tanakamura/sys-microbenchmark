@@ -383,7 +383,7 @@ struct GetFileSize1 : public no_arg {
 typedef Table1DBenchDesc<double, std::string> parent_t;
 
 struct Syscall : public parent_t{
-    Syscall() : parent_t("syscall") {}
+    Syscall() : parent_t("syscall", LOWER_IS_BETTER) {}
 
 #ifdef BAREMETAL
     virtual result_t run(GlobalState const *g) override {
