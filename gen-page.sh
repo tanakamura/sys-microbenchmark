@@ -1,4 +1,9 @@
+set -xe -o pipefail
 
+(
+    cd build-em
+    ninja
+)
 
 cp build-em/sys-microbenchmark.js docs/viewer
 cp build-em/sys-microbenchmark.wasm docs/viewer

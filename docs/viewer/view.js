@@ -55,7 +55,6 @@ var ModuleClass = /** @class */ (function () {
     ModuleClass.prototype.onRuntimeInitialized = function () {
         var _this = this;
         fetch('./combined.json').then(function (response) { return response.text(); }).then(function (data) {
-            console.log("xx");
             _this.global = new _this.GlobalState();
             _this.all_list = _this.get_all_benchmark_list();
             if (_this.current_data) {
@@ -234,7 +233,6 @@ var ModuleClass = /** @class */ (function () {
                         var labels = new Array();
                         var datasets = new Array(result_vec.size());
                         var datasets_data = new Array(result_vec.size());
-                        console.log('name:' + name_1 + ',' + datas.size() + ',', result_vec.size() + ',base=' + actual_base);
                         for (var dsi = 0; dsi < datasets.length; dsi++) {
                             datasets_data[dsi] = new Array(datas.size());
                         }
