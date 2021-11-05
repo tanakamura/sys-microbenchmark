@@ -70,8 +70,6 @@ class ModuleClass {
 
     onRuntimeInitialized () {
         fetch('./combined.json').then(response => response.text()).then(data=>{
-            console.log("xx");
-
             this.global = new this.GlobalState();
             this.all_list = this.get_all_benchmark_list();
 
@@ -279,8 +277,6 @@ class ModuleClass {
                         let labels = new Array<string>();
                         let datasets = new Array<any>(result_vec.size());
                         let datasets_data = new Array< Array<number> >(result_vec.size());
-
-                        console.log('name:'+name+','+datas.size()+',',result_vec.size()+',base='+actual_base);
 
                         for (let dsi=0; dsi<datasets.length; dsi++) {
                             datasets_data[dsi] = new Array<number>(datas.size());
