@@ -173,7 +173,9 @@ if host_machine.system() == 'emscripten'
   configure_file(input: 'html/view.html',
                  output: '@PLAINNAME@',
                  copy: true)
-  configure_file(input: 'html/view.js',
-                 output: '@PLAINNAME@',
-                 copy: true)
+  custom_target('view.js',
+                build_by_default: true,
+                input: 'html/view.ts',
+                output: '@BASENAME@.js',
+                command: ['tsc', '--strict', '--outFile', '@OUTPUT@', '@INPUT@'])
 endif

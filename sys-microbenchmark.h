@@ -48,7 +48,7 @@ struct CompareData {
 
     const std::string &get_str_xlabel() const { return xlabel; }
     double get_double_xlabel() const { return xval; }
-    const std::vector<double> &get_data() const { return data; }
+    std::vector<double> *get_data() { return &data; }
 };
 
 struct ComparableResult {
@@ -59,7 +59,8 @@ struct ComparableResult {
     XLabelStyle xlabel_style;
 
     const std::string &get_name() const { return name; }
-    const std::vector<CompareData> &get_data() const { return data; }
+    const std::string &get_value_unit() const { return value_unit; }
+    std::vector<CompareData> *get_data() { return &data; }
 };
 
 static constexpr bool HIGHER_IS_BETTER = false;
@@ -309,14 +310,17 @@ typedef std::map<std::string, result_ptr_t> result_set_t;
 struct ResultList {
     struct SysInfo sysinfo;
     result_set_t results;
+
+    result_set_t *get_results() { return &results; }
+    SysInfo *get_sysinfo() { return &sysinfo; }
 };
 
 struct GlobalState {
     std::unique_ptr<ProcessorTable> proc_table;
 
     std::vector<std::shared_ptr<BenchDesc>> bench_list;
-    std::vector<std::shared_ptr<BenchDesc>> get_active_benchmark_list() const {
-        return bench_list;
+    const std::vector<std::shared_ptr<BenchDesc>> *get_active_benchmark_list() const {
+        return &bench_list;
     }
 
 #ifdef HAVE_USERLAND_CPUCOUNTER
@@ -387,6 +391,8 @@ SysInfo get_sysinfo(GlobalState const *g);
 
 struct ResultListSet {
     std::vector<ResultList> lists;
+
+    std::vector<ResultList> * get_lists() { return &lists; }
 };
 
 void deserialize_result(ResultListSet &dst, picojson::value const &r);

@@ -91,7 +91,6 @@ int main(int argc, char **argv) {
                     if (it == r.results.end()) {
                         results.push_back(nullptr);
                     } else {
-                        puts("xx");
                         results.push_back(it->second);
                     }
                 }
