@@ -104,7 +104,7 @@ struct BufferEstimator : public Loop {
 
     int loop_counter_reg, p0_reg, p1_reg, p2_reg;
 
-    int loop_count() override { return 1024; }
+    int loop_count() override { return 256; }
 
     BufferEstimator(Buffer p, int depth, Chain *l, Chain *l2)
         : pipe(p), depth(depth), random_data0(l), random_data1(l2) {
@@ -375,7 +375,7 @@ struct CPUCorePipeline : public parent_t {
         std::vector<std::string> labels;
         std::vector<int> results;
 
-        int max_depth = 400;
+        int max_depth = 8;
 
         if (1) {
             int nchain = 1024 * 1024 * 16;
@@ -427,50 +427,67 @@ struct CPUCorePipeline : public parent_t {
                 random_ptr2[i].v = (uintptr_t)&random_ptr2[idx];
             }
 
-            int start_depth = 4;
-
             for (int pi = 0; pi < (int)Buffer::NUM_BUFFER; pi++) {
-                std::vector<double> history(max_depth);
-                std::vector<double> d(max_depth);
+                bool find_result = false;
 
-                for (int di = start_depth; di < max_depth; di++) {
-                    BufferEstimator ml((Buffer)pi, di, &random_ptr[0],
-                                       &random_ptr2[0]);
-                    ml.gen();
+                int start_depth = 2;
+                int current_start_depth = start_depth;
+                int current_depth = max_depth;
+                std::vector<double> history(current_depth);
+                std::vector<double> d(current_depth);
 
-                    double v = ml.run(g);
-                    history[di] = v;
-                    // printf("%d,%f\n", di, v);
-                }
+                while (!find_result) {
+                    for (int di = current_start_depth; di < current_depth;
+                         di++) {
+                        BufferEstimator ml((Buffer)pi, di, &random_ptr[0],
+                                           &random_ptr2[0]);
+                        ml.gen();
 
-                double min = 1e9;
-                /* remove spike */
-                for (int di = max_depth - 1; di >= start_depth; di--) {
-                    min = std::min(history[di], min);
-                    history[di] = min;
-                }
-
-                int distance = 2;
-
-                for (int di = start_depth + distance; di < max_depth; di++) {
-                    d[di] = history[di] - history[di - distance];
-                }
-
-                int maxd_pos = 0;
-                double maxd = 0;
-                for (int di = start_depth + distance; di < max_depth; di++) {
-                    if (d[di] > maxd) {
-                        maxd = d[di];
-                        maxd_pos = di;
+                        double v = ml.run(g);
+                        history[di] = v;
+                        // printf("%d,%f\n", di, v);
                     }
-                    // printf("%d:%f %f\n", di, history[di], d[di]);
-                }
 
-                labels.push_back(name_table[pi]);
-                results.push_back(maxd_pos + BufferEstimator::load_chain_num);
+                    double min = 1e9;
+                    /* remove spike */
+                    for (int di = current_depth - 1; di >= start_depth; di--) {
+                        min = std::min(history[di], min);
+                        history[di] = min;
+                    }
 
-                if (pi == 0) {
-                    max_depth = maxd_pos + BufferEstimator::load_chain_num;
+                    int distance = 2;
+
+                    for (int di = start_depth + distance; di < current_depth;
+                         di++) {
+                        d[di] = history[di] - history[di - distance];
+                    }
+
+                    int maxd_pos = 0;
+                    double maxd = 0;
+                    for (int di = start_depth + distance; di < current_depth;
+                         di++) {
+                        if (d[di] > maxd) {
+                            maxd = d[di];
+                            maxd_pos = di;
+                        }
+                        //printf("%d:%f %f\n", di, history[di], d[di]);
+                    }
+
+                    //printf("%d / %d\n", maxd_pos, current_depth);
+
+                    if (maxd != 0 && maxd_pos < current_depth * 0.75 && maxd > 50) {
+                        labels.push_back(name_table[pi]);
+                        results.push_back(maxd_pos +
+                                          BufferEstimator::load_chain_num);
+
+                        max_depth = std::max(max_depth, maxd_pos + BufferEstimator::load_chain_num);
+                        find_result = true;
+                    } else {
+                        current_start_depth = current_depth;
+                        current_depth *= 1.6;
+                        d.resize(current_depth);
+                        history.resize(current_depth);
+                    }
                 }
             }
         }
@@ -492,7 +509,7 @@ struct CPUCorePipeline : public parent_t {
                         se.gen();
                         double v = se.run(g);
                         history[depth] = v;
-                        // printf("%d:%f\n", depth, v);
+                        //printf("%d:%f\n", depth, v);
                     }
 
                     double final_sum = 0;
@@ -555,9 +572,7 @@ struct CPUCorePipeline : public parent_t {
         return result_t(table);
     }
 #else
-    virtual result_t run(GlobalState const *g) override {
-        return result_t();
-    }
+    virtual result_t run(GlobalState const *g) override { return result_t(); }
 #endif
 
     int double_precision() override { return 2; }
@@ -576,6 +591,5 @@ struct CPUCorePipeline : public parent_t {
 std::unique_ptr<BenchDesc> get_cpucore_pipeline_desc() {
     return std::unique_ptr<BenchDesc>(new CPUCorePipeline());
 }
-
 
 } // namespace smbm

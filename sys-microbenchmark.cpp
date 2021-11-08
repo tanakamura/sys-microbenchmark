@@ -202,6 +202,7 @@ GlobalState::GlobalState() : proc_table(new ProcessorTable()) {
         attr.type = PERF_TYPE_HARDWARE;
         attr.size = sizeof(attr);
         attr.config = PERF_COUNT_HW_CPU_CYCLES;
+        //attr.config = 0x800000000ULL;
         attr.exclude_kernel = 1;
 
         this->perf_fd_cycle = perf_event_open(&attr, 0, -1, -1, 0);
